@@ -1,0 +1,157 @@
+import Phaser from 'phaser';
+
+export type Device = 'kbm' | 'pad';
+
+export interface ControlState {
+  /** Movement, length 0..1. */
+  move: Phaser.Math.Vector2;
+  /** Aim angle in radians (0 = right). */
+  aim: number;
+  fire: boolean;
+  toggleAim: boolean;
+  confirm: boolean;
+  back: boolean;
+  device: Device;
+}
+
+export interface MenuState {
+  up: boolean;
+  down: boolean;
+  left: boolean;
+  right: boolean;
+  confirm: boolean;
+  back: boolean;
+  toggleAim: boolean;
+  device: Device;
+}
+
+const DEADZONE = 0.2;
+const AIM_THRESHOLD = 0.35;
+const TRIGGER_THRESHOLD = 0.3;
+const MENU_STICK = 0.5;
+// Standard gamepad mapping (Xbox layout).
+const BTN = { A: 0, B: 1, BACK: 8, START: 9, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 } as const;
+const TRACKED = Object.values(BTN);
+
+type KeyName = 'W' | 'A' | 'S' | 'D' | 'Q' | 'ENTER' | 'SPACE' | 'ESC' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
+
+/**
+ * One input layer for keyboard + mouse and a controller. Whichever was used last owns the aim.
+ * Controller: left stick or D-pad moves, right stick aims and fires, RT/RB fire, Back toggles aim mode.
+ * Construct one per scene.
+ */
+export class Controls {
+  device: Device = 'kbm';
+  /** False until the mouse has moved over the game, so no crosshair is drawn at (0, 0). */
+  mouseSeen = false;
+  private padAim = -Math.PI / 2;
+  private prevButtons = new Set<number>();
+  private prevStick = { x: 0, y: 0 };
+  private readonly keys: Record<KeyName, Phaser.Input.Keyboard.Key>;
+
+  constructor(private readonly scene: Phaser.Scene) {
+    this.keys = scene.input.keyboard!.addKeys('W,A,S,D,Q,ENTER,SPACE,ESC,UP,DOWN,LEFT,RIGHT') as Controls['keys'];
+    scene.input.mouse?.disableContextMenu();
+    scene.input.on('pointermove', () => {
+      this.device = 'kbm';
+      this.mouseSeen = true;
+    });
+    scene.input.on('pointerdown', () => (this.device = 'kbm'));
+  }
+
+  /** The first connected controller, if the browser has seen one (it needs a button press first). */
+  pad(): Phaser.Input.Gamepad.Gamepad | undefined {
+    const pad = this.scene.input.gamepad?.pad1;
+    return pad && pad.connected ? pad : undefined;
+  }
+
+  /** Buttons pressed this frame that weren't pressed last frame. Call once per frame. */
+  private padEdges(pad: Phaser.Input.Gamepad.Gamepad | undefined) {
+    const down = new Set(pad ? TRACKED.filter((i) => pad.buttons[i]?.pressed) : []);
+    const edges = new Set([...down].filter((i) => !this.prevButtons.has(i)));
+    this.prevButtons = down;
+    if (edges.size) this.device = 'pad';
+    return edges;
+  }
+
+  read(from: { x: number; y: number }): ControlState {
+    const k = this.keys;
+    const just = Phaser.Input.Keyboard.JustDown;
+    const pointer = this.scene.input.activePointer;
+    const move = new Phaser.Math.Vector2((k.D.isDown ? 1 : 0) - (k.A.isDown ? 1 : 0), (k.S.isDown ? 1 : 0) - (k.W.isDown ? 1 : 0));
+    if (move.lengthSq() > 0) move.normalize();
+
+    let fire = pointer.leftButtonDown();
+    let toggleAim = just(k.Q);
+    let confirm = just(k.ENTER) || just(k.SPACE);
+    let back = just(k.ESC);
+
+    const pad = this.pad();
+    const edges = this.padEdges(pad);
+    if (pad) {
+      const dz = (v: number) => (Math.abs(v) < DEADZONE ? 0 : v);
+      let mx = dz(pad.leftStick.x);
+      let my = dz(pad.leftStick.y);
+      if (pad.left) mx = -1;
+      if (pad.right) mx = 1;
+      if (pad.up) my = -1;
+      if (pad.down) my = 1;
+      if (mx || my) {
+        move.set(mx, my);
+        if (move.length() > 1) move.normalize();
+        this.device = 'pad';
+      }
+      const stick = pad.rightStick;
+      if (stick.length() > AIM_THRESHOLD) {
+        this.padAim = Math.atan2(stick.y, stick.x);
+        fire = true;
+        this.device = 'pad';
+      }
+      if (pad.R2 > TRIGGER_THRESHOLD || pad.R1 > TRIGGER_THRESHOLD) {
+        fire = true;
+        this.device = 'pad';
+      }
+      if (edges.has(BTN.BACK)) toggleAim = true;
+      if (edges.has(BTN.START) || edges.has(BTN.A)) confirm = true;
+      if (edges.has(BTN.B)) back = true;
+    }
+
+    const aim = this.device === 'pad' ? this.padAim : Math.atan2(pointer.worldY - from.y, pointer.worldX - from.x);
+    return { move, aim, fire, toggleAim, confirm, back, device: this.device };
+  }
+
+  readMenu(): MenuState {
+    const k = this.keys;
+    const just = Phaser.Input.Keyboard.JustDown;
+    const s: MenuState = {
+      up: just(k.W) || just(k.UP),
+      down: just(k.S) || just(k.DOWN),
+      left: just(k.A) || just(k.LEFT),
+      right: just(k.D) || just(k.RIGHT),
+      confirm: just(k.ENTER) || just(k.SPACE),
+      back: just(k.ESC),
+      toggleAim: just(k.Q),
+      device: this.device,
+    };
+    if (Object.values(s).some((v) => v === true)) this.device = s.device = 'kbm';
+
+    const pad = this.pad();
+    const edges = this.padEdges(pad);
+    if (pad) {
+      // The left stick acts like a D-pad: one step each time it crosses the threshold.
+      const x = pad.leftStick.x, y = pad.leftStick.y;
+      const crossed = (now: number, before: number, sign: number) => now * sign > MENU_STICK && before * sign <= MENU_STICK;
+      s.up ||= edges.has(BTN.UP) || crossed(y, this.prevStick.y, -1);
+      s.down ||= edges.has(BTN.DOWN) || crossed(y, this.prevStick.y, 1);
+      s.left ||= edges.has(BTN.LEFT) || crossed(x, this.prevStick.x, -1);
+      s.right ||= edges.has(BTN.RIGHT) || crossed(x, this.prevStick.x, 1);
+      s.confirm ||= edges.has(BTN.A) || edges.has(BTN.START);
+      s.back ||= edges.has(BTN.B);
+      s.toggleAim ||= edges.has(BTN.BACK);
+      if (Math.abs(x) > MENU_STICK || Math.abs(y) > MENU_STICK) this.device = 'pad';
+      this.prevStick = { x, y };
+      s.device = this.device;
+    }
+    return s;
+  }
+}

@@ -1,0 +1,560 @@
+<title>Space Raider Concept Sheet</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600&family=Silkscreen:wght@400;700&display=swap">
+<style>
+/* Layout: an arcade operator's sheet. The live room screen leads, then one panel per sprite slot, then the rules of a vault run. */
+:root {
+  --void: #0b0d1a;      /* page ground, indigo-black */
+  --panel: #13172e;     /* raised surfaces */
+  --line: #272d55;      /* hairlines, empty cells */
+  --ink: #e7e4f6;       /* primary text */
+  --dim: #9295b8;       /* secondary text */
+  --amber: #ffb547;     /* accent: HUD, selection, points */
+  --beam: #5ef2ff;      /* player beam, exit */
+  --danger: #ff5f73;    /* hostile fire, wreck marker */
+  --font-display: "Silkscreen", "Courier New", monospace;
+  --font-body: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --step--1: 0.8125rem; --step-0: 1rem; --step-1: 1.25rem; --step-2: 1.75rem; --step-3: clamp(2.25rem, 7vw, 4rem);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--void); color: var(--ink); font-family: var(--font-body); font-size: var(--step-0); line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px;
+}
+.wrap { max-width: 1264px; margin: 0 auto; display: grid; gap: 56px; }
+h1, h2, h3, .label { font-family: var(--font-display); font-weight: 400; text-wrap: balance; margin: 0; }
+h1 { font-size: var(--step-3); line-height: 1; letter-spacing: 0.02em; color: var(--amber); }
+h2 { font-size: var(--step-2); line-height: 1.1; }
+h3 { font-size: var(--step-0); letter-spacing: 0.04em; }
+p { margin: 0; }
+.label { font-size: var(--step--1); letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+.muted { color: var(--dim); }
+
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px 32px; padding-top: 40px; }
+header.top .pitch { max-width: 60ch; margin-top: 12px; color: var(--dim); }
+.actions { display: grid; gap: 8px; justify-items: end; }
+button.primary {
+  font-family: var(--font-display); font-size: var(--step--1); letter-spacing: 0.08em; text-transform: uppercase;
+  background: var(--amber); color: var(--void); border: 0; padding: 12px 18px; cursor: pointer;
+  box-shadow: 4px 4px 0 var(--line);
+}
+button.primary:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--line); }
+button:focus-visible, canvas:focus-visible { outline: 2px solid var(--beam); outline-offset: 3px; }
+.controls { display: grid; gap: 10px; }
+.keys .label { min-width: 96px; }
+.pad-status { font-size: var(--step--1); color: var(--dim); }
+.pad-status[data-on="true"] { color: var(--beam); }
+.seg { display: inline-flex; border: 1px solid var(--line); }
+.seg button { font-family: var(--font-display); font-size: 0.75rem; background: var(--panel); color: var(--dim); border: 0; padding: 6px 10px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--amber); color: var(--void); }
+#copy-status { font-size: var(--step--1); color: var(--dim); min-height: 1.5em; }
+#picks-text { width: min(420px, 100%); height: 120px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); font: 12px/1.4 monospace; }
+
+/* Screen */
+.screen-block { display: grid; gap: 16px; }
+.bezel { background: #05060d; border: 1px solid var(--line); padding: clamp(6px, 1.5vw, 16px); box-shadow: 0 0 0 4px var(--panel), 0 24px 60px -30px #000; }
+#screen { display: block; width: 100%; height: auto; aspect-ratio: 416 / 228; image-rendering: pixelated; cursor: none; touch-action: none; }
+.screen-notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px 24px; }
+.screen-notes div { display: grid; gap: 2px; min-width: 0; }
+.keys { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: center; }
+.key { display: inline-flex; gap: 4px; align-items: center; }
+kbd {
+  font-family: var(--font-display); font-size: 0.75rem; min-width: 26px; padding: 4px 6px; text-align: center;
+  background: var(--panel); border: 1px solid var(--line); border-bottom-width: 3px; color: var(--ink);
+}
+
+/* Slot panels */
+.section { display: grid; gap: 20px; }
+.section-head { display: grid; gap: 6px; max-width: 70ch; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 296px), 1fr)); gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); padding: 16px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.card-head { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; }
+.hero-sprite { width: 96px; height: 96px; image-rendering: pixelated; background: var(--void); border: 1px solid var(--line); }
+.card-title { display: grid; gap: 4px; min-width: 0; }
+.chip { justify-self: start; font-family: var(--font-display); font-size: 0.75rem; color: var(--void); background: var(--amber); padding: 2px 6px; font-variant-numeric: tabular-nums; }
+.chip.ghost { background: transparent; color: var(--amber); border: 1px solid var(--amber); }
+.card p { font-size: 0.9375rem; }
+.cands { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.cand { padding: 0; aspect-ratio: 1; background: var(--void); border: 1px solid var(--line); cursor: pointer; display: grid; place-items: center; }
+.cand img { width: 75%; height: 75%; image-rendering: pixelated; }
+.cand:hover { border-color: var(--dim); }
+.cand[aria-pressed="true"] { border-color: var(--amber); box-shadow: inset 0 0 0 1px var(--amber); }
+.meta { font-size: var(--step--1); color: var(--dim); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.sizes { display: flex; gap: 12px; align-items: end; }
+.sizes figure { margin: 0; display: grid; gap: 4px; justify-items: center; }
+.sizes img { image-rendering: pixelated; background: var(--void); }
+.sizes figcaption { font-size: 0.75rem; color: var(--dim); }
+#ship-grid { grid-template-columns: minmax(0, 720px); }
+#ship-grid .card { grid-template-columns: auto 1fr; align-items: start; gap: 14px 24px; }
+#ship-grid .card > .cands { grid-column: 1 / -1; grid-template-columns: repeat(8, 1fr); }
+@media (max-width: 560px) { #ship-grid .card { grid-template-columns: 1fr; } #ship-grid .card > .cands { grid-template-columns: repeat(4, 1fr); } }
+.bar { height: 6px; background: var(--line); }
+.bar span { display: block; height: 100%; background: var(--amber); }
+
+/* Rules */
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px 32px; }
+.rules div { display: grid; gap: 4px; border-top: 1px solid var(--line); padding-top: 12px; }
+.rules strong { font-family: var(--font-display); font-weight: 400; color: var(--amber); font-variant-numeric: tabular-nums; }
+footer { border-top: 1px solid var(--line); padding-top: 16px; font-size: var(--step--1); color: var(--dim); display: grid; gap: 6px; }
+footer a { color: var(--beam); }
+@media (prefers-reduced-motion: reduce) { button.primary:active { transform: none; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="label">Concept sheet · v0.1 · working title</p>
+      <h1>SPACE RAIDER</h1>
+      <p class="pitch">Twin-stick dungeon raid. Fly a 6&times;6 vault of rooms, blast what guards the loot, and haul it to the extraction pad before your ship goes down.</p>
+    </div>
+    <div class="actions">
+      <button class="primary" id="copy-picks" type="button">Copy my picks</button>
+      <span id="copy-status" role="status"></span>
+      <textarea id="picks-text" hidden readonly aria-label="Your picks as JSON"></textarea>
+    </div>
+  </header>
+
+  <section class="screen-block" aria-labelledby="screen-h">
+    <div class="section-head">
+      <h2 id="screen-h">Game screen</h2>
+      <p class="muted">Live mockup at the game's real resolution (416&times;228, 16&nbsp;px tiles). Click the screen, then fly it. Every sprite you pick below swaps in here.</p>
+    </div>
+    <div class="bezel"><canvas id="screen" width="416" height="228" tabindex="0" aria-label="Game screen mockup. Click it, then use W A S D to move and the mouse to aim."></canvas></div>
+    <div class="controls">
+      <div class="keys" aria-label="Keyboard and mouse">
+        <span class="label">Keyboard</span>
+        <span class="key"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>&nbsp;move</span>
+        <span class="key"><kbd>Mouse</kbd>&nbsp;aim</span>
+        <span class="key"><kbd>Hold click</kbd>&nbsp;fire</span>
+      </div>
+      <div class="keys" aria-label="Controller">
+        <span class="label">Controller</span>
+        <span class="key"><kbd>L stick</kbd>&nbsp;move</span>
+        <span class="key"><kbd>R stick</kbd>&nbsp;aim and fire</span>
+        <span class="key"><kbd>RT</kbd>&nbsp;fire</span>
+        <span class="pad-status" id="pad-status" role="status">No controller yet. Press any button on it.</span>
+      </div>
+      <div class="keys">
+        <span class="label">Aim</span>
+        <span class="seg" role="group" aria-label="Aim mode"><button type="button" id="aim-360" data-aim="360" aria-pressed="true">360&deg;</button><button type="button" id="aim-8" data-aim="8" aria-pressed="false">8-way</button></span>
+        <span class="muted" id="aim-note">Free aim. The beam leaves the hull edge facing your aim.</span>
+      </div>
+    </div>
+    <div class="screen-notes">
+      <div><span class="label">Top bar</span><span>Score, ships left, vault number and the value of the cargo you're carrying.</span></div>
+      <div><span class="label">Room</span><span>20&times;12 tiles. Doors differ in width per wall; some walls have none.</span></div>
+      <div><span class="label">Vault map</span><span>6&times;6 automap. Amber is you, cyan is the extraction room, red X is your wreck.</span></div>
+      <div><span class="label">Cargo</span><span>Treasure you hold. Lose a ship and it drops at the X in that room.</span></div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="ship-h">
+    <div class="section-head">
+      <h2 id="ship-h">Player ship</h2>
+      <p class="muted">A round hull that never rotates. The beam leaves from whichever side or corner faces your aim, so pick a symmetric sprite that reads the same from every direction.</p>
+    </div>
+    <div class="grid" id="ship-grid"></div>
+  </section>
+
+  <section class="section" aria-labelledby="enemy-h">
+    <div class="section-head">
+      <h2 id="enemy-h">Hostiles</h2>
+      <p class="muted">Six roles. Points are per kill except the Scavenger, which can't be destroyed: shooting it only drives it off.</p>
+    </div>
+    <div class="grid" id="enemy-grid"></div>
+  </section>
+
+  <section class="section" aria-labelledby="loot-h">
+    <div class="section-head">
+      <h2 id="loot-h">Treasure</h2>
+      <p class="muted">Five tiers. Each doubles the last. Bars are drawn to scale against the 8,000-point top tier.</p>
+    </div>
+    <div class="grid" id="loot-grid"></div>
+  </section>
+
+  <section class="section" aria-labelledby="env-h">
+    <div class="section-head">
+      <h2 id="env-h">Rooms &amp; markers</h2>
+      <p class="muted">Pixel Search sprites are objects, not seamless tiles. Walls repeat a single plate; the floor is drawn in code.</p>
+    </div>
+    <div class="grid" id="env-grid"></div>
+  </section>
+
+  <section class="section" aria-labelledby="rules-h">
+    <div class="section-head"><h2 id="rules-h">How a vault plays</h2></div>
+    <div class="rules">
+      <div><strong>36 rooms</strong><span>Each vault is a 6&times;6 grid. You enter at one room; one other room holds the extraction pad.</span></div>
+      <div><strong>Carry, then bank</strong><span>Treasure only scores when you reach extraction. The more you carry out, the bigger the bonus.</span></div>
+      <div><strong>Wreck marker</strong><span>Lose a ship and your cargo drops where you died, marked X for one life. Dropped loot stays in that room until you pick it up or the game ends.</span></div>
+      <div><strong>+10,000</strong><span>Bonus for entering every room in the vault before you extract.</span></div>
+      <div><strong>Extra ship</strong><span>Every 10,000 points.</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Sprites: <a href="https://huggingface.co/spaces/cfahlgren1/pixel-search" target="_blank" rel="noopener">Pixel Search</a> catalog of <a href="https://huggingface.co/datasets/Angais/pixel-art-atlas-1.4m" target="_blank" rel="noopener">Angais/pixel-art-atlas-1.4m</a>, CC0, AI-generated. Numbers under each sprite are its catalog id.</span>
+    <span>Fonts: Silkscreen and Chakra Petch (SIL OFL).</span>
+  </footer>
+</div>
+
+<script>
+const SPRITES = /*SPRITES*/{};
+
+const ENEMIES = [
+  { slot: "hunter", name: "Hunter drone", pts: "100", text: "Homes in on you, often in pairs. Enters through doors." },
+  { slot: "sentry", name: "Corner sentry", pts: "25 each", text: "Comes as a set of four, bolted into the corners. Fires bolts across the room." },
+  { slot: "mine", name: "Drift mine", pts: "25", text: "Drifts in straight lines and bounces off walls. Touching it costs a ship." },
+  { slot: "warden", name: "Warden", pts: "125", text: "Slow and armored. Parks between you and the room's treasure." },
+  { slot: "brood", name: "Brood pod", pts: "500", text: "Never moves. Hatches hunter drones until you destroy it." },
+  { slot: "scavenger", name: "Scavenger", pts: "50", ghost: true, text: "Can't be destroyed. Snatches cargo and runs; hit it to make it drop the loot." },
+];
+const LOOT = [
+  { slot: "t1_coin", name: "Scrap Coin", pts: 500 },
+  { slot: "t2_chip", name: "Data Core", pts: 1000 },
+  { slot: "t3_star", name: "Star Shard", pts: 2000 },
+  { slot: "t4_crystal", name: "Relic Crystal", pts: 4000 },
+  { slot: "t5_idol", name: "Ancient Idol", pts: 8000 },
+];
+const ENV = [
+  { slot: "wall", name: "Wall plate", text: "Repeats around every room edge." },
+  { slot: "door", name: "Door frame", text: "Flanks each doorway. Gaps are 2 to 6 tiles wide." },
+  { slot: "exit", name: "Extraction pad", text: "Sits in the exit room. Fly onto it to bank your cargo and end the vault." },
+  { slot: "xmark", name: "Wreck marker", text: "Shows where your last ship went down and your cargo dropped." },
+];
+
+// Picks: first candidate by default; remembered per viewer when storage allows.
+const picks = {};
+for (const slot in SPRITES) picks[slot] = SPRITES[slot][0]?.id;
+try {
+  const saved = JSON.parse(localStorage.getItem("space-raider-picks") || "{}");
+  for (const slot in saved) if (SPRITES[slot]?.some((s) => s.id === saved[slot])) picks[slot] = saved[slot];
+} catch (e) {}
+
+const images = {};
+for (const slot in SPRITES) for (const s of SPRITES[slot]) { const img = new Image(); img.src = s.src; images[s.id] = img; }
+const pick = (slot) => images[picks[slot]];
+const entry = (slot) => SPRITES[slot].find((s) => s.id === picks[slot]);
+
+function candidates(slot) {
+  const box = document.createElement("div");
+  box.className = "cands";
+  for (const s of SPRITES[slot]) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "cand"; b.dataset.slot = slot; b.dataset.id = s.id;
+    b.title = `${s.subject} · #${s.id}`;
+    b.setAttribute("aria-label", `${s.subject}, catalog ${s.id}`);
+    b.setAttribute("aria-pressed", String(s.id === picks[slot]));
+    const img = document.createElement("img"); img.src = s.src; img.alt = "";
+    b.append(img); box.append(b);
+  }
+  return box;
+}
+
+function card({ slot, name, pts, ghost, text, bar }) {
+  const c = document.createElement("article");
+  c.className = "card"; c.dataset.slot = slot;
+  const head = document.createElement("div"); head.className = "card-head";
+  const hero = document.createElement("img"); hero.className = "hero-sprite"; hero.alt = name; hero.dataset.hero = slot;
+  const title = document.createElement("div"); title.className = "card-title";
+  const h = document.createElement("h3"); h.textContent = name; title.append(h);
+  if (pts) { const chip = document.createElement("span"); chip.className = ghost ? "chip ghost" : "chip"; chip.textContent = `${pts} pts`; title.append(chip); }
+  const meta = document.createElement("span"); meta.className = "meta"; meta.dataset.meta = slot; title.append(meta);
+  head.append(hero, title); c.append(head);
+  if (bar) { const b = document.createElement("div"); b.className = "bar"; b.innerHTML = `<span style="width:${bar * 100}%"></span>`; c.append(b); }
+  if (text) { const p = document.createElement("p"); p.textContent = text; c.append(p); }
+  c.append(candidates(slot));
+  return c;
+}
+
+function shipCard() {
+  const c = card({ slot: "player", name: "Your ship", text: "Pick the silhouette that reads best at 1×. That's the size it plays at." });
+  const sizes = document.createElement("div"); sizes.className = "sizes";
+  for (const n of [1, 2, 4]) {
+    const f = document.createElement("figure");
+    const img = document.createElement("img"); img.width = 16 * n; img.height = 16 * n; img.alt = ""; img.dataset.hero = "player";
+    const cap = document.createElement("figcaption"); cap.textContent = `${n}× · ${16 * n}px`;
+    f.append(img, cap); sizes.append(f);
+  }
+  c.insertBefore(sizes, c.querySelector(".cands"));
+  return c;
+}
+
+document.getElementById("ship-grid").append(shipCard());
+for (const e of ENEMIES) document.getElementById("enemy-grid").append(card(e));
+for (const t of LOOT) document.getElementById("loot-grid").append(card({ ...t, pts: t.pts.toLocaleString("en-US"), bar: t.pts / 8000 }));
+for (const e of ENV) document.getElementById("env-grid").append(card(e));
+
+function refreshCards() {
+  document.querySelectorAll("[data-hero]").forEach((img) => (img.src = entry(img.dataset.hero).src));
+  document.querySelectorAll("[data-meta]").forEach((m) => { const s = entry(m.dataset.meta); m.textContent = `${s.subject} · #${s.id}`; });
+  document.querySelectorAll(".cand").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.id) === picks[b.dataset.slot])));
+}
+refreshCards();
+
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest(".cand");
+  if (!b) return;
+  picks[b.dataset.slot] = Number(b.dataset.id);
+  try { localStorage.setItem("space-raider-picks", JSON.stringify(picks)); } catch (e) {}
+  refreshCards();
+});
+
+document.getElementById("copy-picks").addEventListener("click", () => {
+  const json = JSON.stringify(picks, null, 2);
+  const status = document.getElementById("copy-status");
+  const area = document.getElementById("picks-text");
+  const fallback = () => { area.value = json; area.hidden = false; area.focus(); area.select(); status.textContent = "Copy the selected text below."; };
+  try {
+    navigator.clipboard.writeText(json).then(() => { area.hidden = true; status.textContent = "Copied. Paste it back to Claude."; }, fallback);
+  } catch (e) { fallback(); }
+});
+
+// ---- Screen mockup ----
+const cv = document.getElementById("screen");
+const ctx = cv.getContext("2d");
+const W = 416, H = 228, T = 16, RY = 18, COLS = 20, ROWS = 12;
+const IN = { x0: T, y0: RY + T, x1: (COLS - 1) * T, y1: RY + (ROWS - 1) * T };
+const DOORS = { top: [8, 11], right: [5, 6], bottom: [7, 12] }; // tile spans; the left wall is solid
+const C = { void: "#05060d", ink: "#e7e4f6", dim: "#9295b8", amber: "#ffb547", beam: "#5ef2ff", danger: "#ff5f73", line: "#272d55", panel: "#13172e" };
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const tile = (c, r) => ({ x: c * T + 8, y: RY + r * T + 8 });
+
+const player = { ...tile(10, 6) };
+const keys = new Set();
+const mouse = { x: 160, y: 20, inside: false, last: -1e9 };
+let lastInput = -1e9, lastDevice = "kbm", padAim = -Math.PI / 2, padSeen = -1e9, snap8 = false, padLabel = "";
+let firing = false;
+const sentries = [tile(1, 1), tile(COLS - 2, 1), tile(1, ROWS - 2), tile(COLS - 2, ROWS - 2)].map((p, i) => ({ ...p, cool: 0.4 + i * 0.45 }));
+const bolts = [];
+const spawnPoints = [tile(9, 1), tile(COLS - 2, 5), tile(10, ROWS - 2)];
+const hunters = [{ ...spawnPoints[0] }, { ...spawnPoints[2] }];
+const mine = { ...tile(6, 4), vx: 26, vy: 17 };
+const idol = tile(16, 2);
+const warden = { ...tile(15, 3), t: 0 };
+const brood = tile(3, 8);
+const xmark = tile(7, 9);
+const loot = [{ slot: "t1_coin", ...tile(5, 3) }, { slot: "t3_star", ...tile(13, 9) }, { slot: "t4_crystal", ...tile(17, 9) }, { slot: "t5_idol", ...idol }, { slot: "t2_chip", x: xmark.x + 4, y: xmark.y - 3 }];
+const scav = { cx: tile(13, 5).x, cy: tile(13, 5).y, a: 0 };
+const VISITED = new Set(["0,2", "1,2", "1,3", "2,3", "2,4", "3,3", "3,2", "3,1"]);
+const CURRENT = "2,3", EXIT = "5,0", WRECK = "1,3";
+const hash = (a, b) => ((a * 73856093) ^ (b * 19349663)) >>> 0;
+
+function drawSprite(slot, x, y, angle = 0, scale = 1) {
+  const img = pick(slot);
+  if (!img || !img.complete) return;
+  ctx.save(); ctx.translate(Math.round(x), Math.round(y));
+  if (angle) ctx.rotate(angle);
+  ctx.drawImage(img, -8 * scale, -8 * scale, 16 * scale, 16 * scale);
+  ctx.restore();
+}
+
+function text(str, x, y, color = C.ink, align = "left") {
+  ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = "top"; ctx.font = "8px Silkscreen, monospace";
+  ctx.fillText(str, x, y);
+}
+
+function inDoor(c, r) {
+  if (r === 0) return c >= DOORS.top[0] && c <= DOORS.top[1];
+  if (r === ROWS - 1) return c >= DOORS.bottom[0] && c <= DOORS.bottom[1];
+  if (c === COLS - 1) return r >= DOORS.right[0] && r <= DOORS.right[1];
+  return false;
+}
+function besideDoor(c, r) {
+  return !inDoor(c, r) && (inDoor(c - 1, r) || inDoor(c + 1, r) || inDoor(c, r - 1) || inDoor(c, r + 1));
+}
+
+function drawRoom(t) {
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    const x = c * T, y = RY + r * T;
+    const edge = r === 0 || c === 0 || r === ROWS - 1 || c === COLS - 1;
+    if (!edge) {
+      const v = hash(c, r) % 3;
+      ctx.fillStyle = ["#121528", "#14182d", "#111324"][v]; ctx.fillRect(x, y, T, T);
+      ctx.fillStyle = "#0c0e1c"; ctx.fillRect(x, y + T - 1, T, 1); ctx.fillRect(x + T - 1, y, 1, T);
+      ctx.fillStyle = "#1d2240"; ctx.fillRect(x + 1, y + 1, 1, 1); ctx.fillRect(x + T - 3, y + T - 3, 1, 1);
+    } else if (inDoor(c, r)) {
+      ctx.fillStyle = C.void; ctx.fillRect(x, y, T, T);
+      const glow = 0.5 + 0.35 * Math.sin(t * 3);
+      ctx.fillStyle = `rgba(255,181,71,${glow})`;
+      if (r === 0) ctx.fillRect(x, y + T - 2, T, 1);
+      else if (r === ROWS - 1) ctx.fillRect(x, y + 1, T, 1);
+      else ctx.fillRect(x + 1, y, 1, T);
+    } else {
+      ctx.fillStyle = "#090a14"; ctx.fillRect(x, y, T, T);
+      drawSprite(besideDoor(c, r) ? "door" : "wall", x + 8, y + 8);
+    }
+  }
+}
+
+function drawHud(t) {
+  ctx.fillStyle = C.void; ctx.fillRect(0, 0, W, RY);
+  ctx.fillStyle = C.line; ctx.fillRect(0, RY - 1, W, 1);
+  text("SCORE", 4, 5, C.dim); text("012,450", 38, 5, C.amber);
+  text("SHIPS", 104, 5, C.dim);
+  for (let i = 0; i < 3; i++) drawSprite("player", 146 + i * 13, 9, 0, 0.75);
+  text("VAULT", 196, 5, C.dim); text("03", 230, 5, C.amber);
+  text("CARGO", 256, 5, C.dim); text("3,500", 292, 5, C.amber);
+  // Side panel: vault map + cargo
+  ctx.fillStyle = C.void; ctx.fillRect(320, RY, W - 320, H - RY);
+  ctx.fillStyle = C.line; ctx.fillRect(320, RY, 1, H - RY);
+  text("VAULT MAP", 368, RY + 6, C.dim, "center");
+  const mx = 330, my = RY + 18, cell = 12, gap = 1;
+  for (let r = 0; r < 6; r++) for (let c = 0; c < 6; c++) {
+    const k = `${c},${r}`, x = mx + c * (cell + gap), y = my + r * (cell + gap);
+    ctx.fillStyle = VISITED.has(k) ? "#2b3263" : C.panel;
+    if (k === EXIT) ctx.fillStyle = "#1a5a66";
+    if (k === CURRENT) ctx.fillStyle = Math.sin(t * 5) > -0.3 ? C.amber : "#7a5520";
+    ctx.fillRect(x, y, cell, cell);
+    if (k === EXIT) { ctx.fillStyle = C.beam; ctx.fillRect(x + 4, y + 4, 4, 4); }
+    if (k === WRECK) {
+      ctx.fillStyle = C.danger;
+      for (let i = 2; i < 10; i++) { ctx.fillRect(x + i, y + i, 1, 1); ctx.fillRect(x + 11 - i, y + i, 1, 1); }
+    }
+  }
+  const ly = my + 6 * (cell + gap) + 8;
+  text("CARGO", 330, ly, C.dim);
+  drawSprite("t1_coin", 338, ly + 20); drawSprite("t3_star", 356, ly + 20); drawSprite("t1_coin", 374, ly + 20); drawSprite("t3_star", 392, ly + 20);
+  text("3,500", 330, ly + 32, C.amber);
+  text("BANK AT", 330, ly + 50, C.dim);
+  ctx.fillStyle = C.beam; ctx.fillRect(330, ly + 62, 6, 6); text("EXIT", 340, ly + 61, C.beam);
+  // Bottom hint strip
+  ctx.fillStyle = C.void; ctx.fillRect(0, RY + ROWS * T, 320, H - RY - ROWS * T);
+  text(lastDevice === "pad" ? "L-STICK MOVE  ·  R-STICK AIM + FIRE" : "WASD MOVE  ·  MOUSE AIM  ·  HOLD CLICK FIRE", 160, RY + ROWS * T + 1, C.dim, "center");
+}
+
+function beamEnd(x, y, dx, dy) {
+  let best = 1e9;
+  if (dx > 0) best = Math.min(best, (IN.x1 - x) / dx); if (dx < 0) best = Math.min(best, (IN.x0 - x) / dx);
+  if (dy > 0) best = Math.min(best, (IN.y1 - y) / dy); if (dy < 0) best = Math.min(best, (IN.y0 - y) / dy);
+  return { x: x + dx * best, y: y + dy * best };
+}
+
+let lastTime = performance.now(), clock = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - lastTime) / 1000); lastTime = now; clock += dt;
+  const edt = reduceMotion ? 0 : dt;
+
+  // Player input
+  const pad = readPad(now);
+  let mx = (keys.has("d") ? 1 : 0) - (keys.has("a") ? 1 : 0), my = (keys.has("s") ? 1 : 0) - (keys.has("w") ? 1 : 0);
+  if (pad && (pad.mx || pad.my)) { mx = pad.mx; my = pad.my; }
+  const ml = Math.hypot(mx, my);
+  if (ml) { const k = Math.min(1, ml) / ml; player.x += mx * k * 72 * dt; player.y += my * k * 72 * dt; }
+  player.x = Math.max(IN.x0 + 7, Math.min(IN.x1 - 7, player.x)); player.y = Math.max(IN.y0 + 7, Math.min(IN.y1 - 7, player.y));
+  const demo = now - lastInput > 2500;
+  let aim = padSeen > mouse.last ? padAim : Math.atan2(mouse.y - player.y, mouse.x - player.x);
+  if (demo) aim = -Math.PI / 2 + Math.sin(clock * 0.7) * 1.2;
+  if (snap8) aim = Math.round(aim / (Math.PI / 4)) * (Math.PI / 4);
+  const shooting = demo ? Math.sin(clock * 2.2) > -0.2 : firing || Boolean(pad && pad.fire);
+
+  // Hostiles
+  for (const s of sentries) {
+    s.cool -= edt;
+    if (s.cool <= 0) { const a = Math.atan2(player.y - s.y, player.x - s.x); bolts.push({ x: s.x, y: s.y, vx: Math.cos(a) * 64, vy: Math.sin(a) * 64 }); s.cool = 1.8; }
+  }
+  for (let i = bolts.length - 1; i >= 0; i--) {
+    const b = bolts[i]; b.x += b.vx * edt; b.y += b.vy * edt;
+    if (b.x < IN.x0 || b.x > IN.x1 || b.y < IN.y0 || b.y > IN.y1) bolts.splice(i, 1);
+  }
+  hunters.forEach((h, i) => {
+    const a = Math.atan2(player.y - h.y, player.x - h.x);
+    h.x += Math.cos(a) * 20 * edt; h.y += Math.sin(a) * 20 * edt;
+    if (Math.hypot(player.x - h.x, player.y - h.y) < 14) Object.assign(h, spawnPoints[(i + Math.floor(clock)) % 3]);
+  });
+  mine.x += mine.vx * edt; mine.y += mine.vy * edt;
+  if (mine.x < IN.x0 + 8 || mine.x > IN.x1 - 8) mine.vx *= -1;
+  if (mine.y < IN.y0 + 8 || mine.y > IN.y1 - 8) mine.vy *= -1;
+  warden.t += edt; scav.a += edt * 1.4;
+
+  // Draw
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = C.void; ctx.fillRect(0, 0, W, H);
+  drawRoom(clock);
+  drawSprite("xmark", xmark.x, xmark.y);
+  for (const l of loot) drawSprite(l.slot, l.x, l.y + Math.sin(clock * 2 + l.x) * (reduceMotion ? 0 : 1));
+  const pulse = 9 + Math.sin(clock * 3) * (reduceMotion ? 0 : 2);
+  ctx.strokeStyle = "rgba(255,95,115,0.45)"; ctx.beginPath(); ctx.arc(brood.x, brood.y, pulse, 0, Math.PI * 2); ctx.stroke();
+  drawSprite("brood", brood.x, brood.y);
+  for (const s of sentries) drawSprite("sentry", s.x, s.y);
+  drawSprite("warden", warden.x + Math.sin(warden.t * 0.8) * 10, warden.y);
+  drawSprite("mine", mine.x, mine.y);
+  for (const h of hunters) drawSprite("hunter", h.x, h.y);
+  drawSprite("scavenger", scav.cx + Math.cos(scav.a) * 26, scav.cy + Math.sin(scav.a) * 16);
+  ctx.fillStyle = C.danger; for (const b of bolts) ctx.fillRect(Math.round(b.x) - 1, Math.round(b.y) - 1, 3, 3);
+
+  // The hull never rotates: the beam starts on the edge of a 14px box, so diagonals leave from a corner.
+  const dx = Math.cos(aim), dy = Math.sin(aim);
+  const hull = 7 / Math.max(Math.abs(dx), Math.abs(dy));
+  const sx = player.x + dx * hull, sy = player.y + dy * hull;
+  if (shooting) {
+    const end = beamEnd(sx, sy, dx, dy);
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "rgba(94,242,255,0.28)"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(end.x, end.y); ctx.stroke();
+    ctx.strokeStyle = "#dffcff"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(end.x, end.y); ctx.stroke();
+    ctx.fillStyle = C.beam; ctx.fillRect(Math.round(end.x) - 2, Math.round(end.y) - 2, 4, 4);
+  }
+  drawSprite("player", player.x, player.y);
+  ctx.fillStyle = shooting ? "#dffcff" : C.beam; ctx.fillRect(Math.round(sx) - 1, Math.round(sy) - 1, 2, 2);
+  drawHud(clock);
+  if (mouse.inside) {
+    ctx.fillStyle = C.amber; const cx = Math.round(mouse.x), cy = Math.round(mouse.y);
+    ctx.fillRect(cx - 5, cy, 3, 1); ctx.fillRect(cx + 3, cy, 3, 1); ctx.fillRect(cx, cy - 5, 1, 3); ctx.fillRect(cx, cy + 3, 1, 3);
+  }
+  requestAnimationFrame(frame);
+}
+
+function toCanvas(ev) {
+  const r = cv.getBoundingClientRect();
+  mouse.x = ((ev.clientX - r.left) / r.width) * W; mouse.y = ((ev.clientY - r.top) / r.height) * H;
+  mouse.last = lastInput = performance.now(); lastDevice = "kbm";
+}
+cv.addEventListener("pointermove", (ev) => { toCanvas(ev); mouse.inside = true; });
+cv.addEventListener("pointerleave", () => { mouse.inside = false; });
+cv.addEventListener("pointerdown", (ev) => { toCanvas(ev); mouse.inside = true; firing = true; cv.focus(); });
+window.addEventListener("pointerup", () => { firing = false; });
+cv.addEventListener("keydown", (ev) => { const k = ev.key.toLowerCase(); if ("wasd".includes(k) && k.length === 1) { keys.add(k); lastInput = performance.now(); lastDevice = "kbm"; ev.preventDefault(); } });
+cv.addEventListener("keyup", (ev) => keys.delete(ev.key.toLowerCase()));
+cv.addEventListener("blur", () => keys.clear());
+// Controller: standard mapping (Xbox layout). Left stick or D-pad moves, right stick aims and fires, RT/RB fire.
+function setPadStatus(label, on) {
+  if (label === padLabel) return;
+  padLabel = label;
+  const el = document.getElementById("pad-status");
+  el.textContent = label; el.dataset.on = String(on);
+}
+function readPad(now) {
+  let pads;
+  try { pads = navigator.getGamepads ? navigator.getGamepads() : []; }
+  catch (e) { setPadStatus("This viewer blocks controller input. Open design/concept-sheet.html in a browser tab to use it.", false); return null; }
+  const p = [...pads].find((g) => g && g.connected);
+  if (!p) { setPadStatus("No controller yet. Press any button on it.", false); return null; }
+  setPadStatus(`Connected: ${p.id.replace(/\s*\(.*\)\s*/g, " ").trim()}`, true);
+  const dz = (v) => (Math.abs(v) < 0.2 ? 0 : v);
+  const b = (i) => Boolean(p.buttons[i] && p.buttons[i].pressed);
+  const ax = p.axes;
+  const standard = p.mapping === "standard";
+  const out = { mx: dz(ax[0] || 0), my: dz(ax[1] || 0), fire: false };
+  if (b(12)) out.my = -1; if (b(13)) out.my = 1; if (b(14)) out.mx = -1; if (b(15)) out.mx = 1;
+  const rx = (standard ? ax[2] : ax[3]) || 0, ry = (standard ? ax[3] : ax[4]) || 0;
+  if (Math.hypot(rx, ry) > 0.35) { padAim = Math.atan2(ry, rx); padSeen = now; out.fire = true; }
+  const rt = standard ? (p.buttons[7] ? p.buttons[7].value : 0) : ((ax[5] || -1) + 1) / 2;
+  if (rt > 0.3 || b(5)) out.fire = true;
+  if (out.mx || out.my || out.fire || p.buttons.some((x) => x.pressed)) { lastInput = now; lastDevice = "pad"; }
+  return out;
+}
+window.addEventListener("gamepadconnected", () => { lastInput = performance.now(); lastDevice = "pad"; });
+
+document.querySelectorAll("[data-aim]").forEach((btn, _, all) => btn.addEventListener("click", () => {
+  snap8 = btn.dataset.aim === "8";
+  all.forEach((x) => x.setAttribute("aria-pressed", String(x === btn)));
+  document.getElementById("aim-note").textContent = snap8
+    ? "Eight directions, like the arcade original: four sides and four corners."
+    : "Free aim. The beam leaves the hull edge facing your aim.";
+}));
+
+requestAnimationFrame(frame);
+</script>

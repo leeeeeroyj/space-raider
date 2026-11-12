@@ -1,0 +1,560 @@
+<title>Space Raider Concept Sheet</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600&family=Silkscreen:wght@400;700&display=swap">
+<style>
+/* Layout: an arcade operator's sheet. The live room screen leads, then one panel per sprite slot, then the rules of a vault run. */
+:root {
+  --void: #0b0d1a;      /* page ground, indigo-black */
+  --panel: #13172e;     /* raised surfaces */
+  --line: #272d55;      /* hairlines, empty cells */
+  --ink: #e7e4f6;       /* primary text */
+  --dim: #9295b8;       /* secondary text */
+  --amber: #ffb547;     /* accent: HUD, selection, points */
+  --beam: #5ef2ff;      /* player beam, exit */
+  --danger: #ff5f73;    /* hostile fire, wreck marker */
+  --font-display: "Silkscreen", "Courier New", monospace;
+  --font-body: "Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --step--1: 0.8125rem; --step-0: 1rem; --step-1: 1.25rem; --step-2: 1.75rem; --step-3: clamp(2.25rem, 7vw, 4rem);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--void); color: var(--ink); font-family: var(--font-body); font-size: var(--step-0); line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px;
+}
+.wrap { max-width: 1264px; margin: 0 auto; display: grid; gap: 56px; }
+h1, h2, h3, .label { font-family: var(--font-display); font-weight: 400; text-wrap: balance; margin: 0; }
+h1 { font-size: var(--step-3); line-height: 1; letter-spacing: 0.02em; color: var(--amber); }
+h2 { font-size: var(--step-2); line-height: 1.1; }
+h3 { font-size: var(--step-0); letter-spacing: 0.04em; }
+p { margin: 0; }
+.label { font-size: var(--step--1); letter-spacing: 0.12em; text-transform: uppercase; color: var(--dim); }
+.muted { color: var(--dim); }
+
+header.top { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 16px 32px; padding-top: 40px; }
+header.top .pitch { max-width: 60ch; margin-top: 12px; color: var(--dim); }
+.actions { display: grid; gap: 8px; justify-items: end; }
+button.primary {
+  font-family: var(--font-display); font-size: var(--step--1); letter-spacing: 0.08em; text-transform: uppercase;
+  background: var(--amber); color: var(--void); border: 0; padding: 12px 18px; cursor: pointer;
+  box-shadow: 4px 4px 0 var(--line);
+}
+button.primary:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 var(--line); }
+button:focus-visible, canvas:focus-visible { outline: 2px solid var(--beam); outline-offset: 3px; }
+.controls { display: grid; gap: 10px; }
+.keys .label { min-width: 96px; }
+.pad-status { font-size: var(--step--1); color: var(--dim); }
+.pad-status[data-on="true"] { color: var(--beam); }
+.seg { display: inline-flex; border: 1px solid var(--line); }
+.seg button { font-family: var(--font-display); font-size: 0.75rem; background: var(--panel); color: var(--dim); border: 0; padding: 6px 10px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--amber); color: var(--void); }
+#copy-status { font-size: var(--step--1); color: var(--dim); min-height: 1.5em; }
+#picks-text { width: min(420px, 100%); height: 120px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); font: 12px/1.4 monospace; }
+
+/* Screen */
+.screen-block { display: grid; gap: 16px; }
+.bezel { background: #05060d; border: 1px solid var(--line); padding: clamp(6px, 1.5vw, 16px); box-shadow: 0 0 0 4px var(--panel), 0 24px 60px -30px #000; }
+#screen { display: block; width: 100%; height: auto; aspect-ratio: 416 / 228; image-rendering: pixelated; cursor: none; touch-action: none; }
+.screen-notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px 24px; }
+.screen-notes div { display: grid; gap: 2px; min-width: 0; }
+.keys { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: center; }
+.key { display: inline-flex; gap: 4px; align-items: center; }
+kbd {
+  font-family: var(--font-display); font-size: 0.75rem; min-width: 26px; padding: 4px 6px; text-align: center;
+  background: var(--panel); border: 1px solid var(--line); border-bottom-width: 3px; color: var(--ink);
+}
+
+/* Slot panels */
+.section { display: grid; gap: 20px; }
+.section-head { display: grid; gap: 6px; max-width: 70ch; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 296px), 1fr)); gap: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); padding: 16px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.card-head { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: center; }
+.hero-sprite { width: 96px; height: 96px; image-rendering: pixelated; background: var(--void); border: 1px solid var(--line); }
+.card-title { display: grid; gap: 4px; min-width: 0; }
+.chip { justify-self: start; font-family: var(--font-display); font-size: 0.75rem; color: var(--void); background: var(--amber); padding: 2px 6px; font-variant-numeric: tabular-nums; }
+.chip.ghost { background: transparent; color: var(--amber); border: 1px solid var(--amber); }
+.card p { font-size: 0.9375rem; }
+.cands { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.cand { padding: 0; aspect-ratio: 1; background: var(--void); border: 1px solid var(--line); cursor: pointer; display: grid; place-items: center; }
+.cand img { width: 75%; height: 75%; image-rendering: pixelated; }
+.cand:hover { border-color: var(--dim); }
+.cand[aria-pressed="true"] { border-color: var(--amber); box-shadow: inset 0 0 0 1px var(--amber); }
+.meta { font-size: var(--step--1); color: var(--dim); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.sizes { display: flex; gap: 12px; align-items: end; }
+.sizes figure { margin: 0; display: grid; gap: 4px; justify-items: center; }
+.sizes img { image-rendering: pixelated; background: var(--void); }
+.sizes figcaption { font-size: 0.75rem; color: var(--dim); }
+#ship-grid { grid-template-columns: minmax(0, 720px); }
+#ship-grid .card { grid-template-columns: auto 1fr; align-items: start; gap: 14px 24px; }
+#ship-grid .card > .cands { grid-column: 1 / -1; grid-template-columns: repeat(8, 1fr); }
+@media (max-width: 560px) { #ship-grid .card { grid-template-columns: 1fr; } #ship-grid .card > .cands { grid-template-columns: repeat(4, 1fr); } }
+.bar { height: 6px; background: var(--line); }
+.bar span { display: block; height: 100%; background: var(--amber); }
+
+/* Rules */
+.rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px 32px; }
+.rules div { display: grid; gap: 4px; border-top: 1px solid var(--line); padding-top: 12px; }
+.rules strong { font-family: var(--font-display); font-weight: 400; color: var(--amber); font-variant-numeric: tabular-nums; }
+footer { border-top: 1px solid var(--line); padding-top: 16px; font-size: var(--step--1); color: var(--dim); display: grid; gap: 6px; }
+footer a { color: var(--beam); }
+@media (prefers-reduced-motion: reduce) { button.primary:active { transform: none; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="label">Concept sheet · v0.1 · working title</p>
+      <h1>SPACE RAIDER</h1>
+      <p class="pitch">Twin-stick dungeon raid. Fly a 6&times;6 vault of rooms, blast what guards the loot, and haul it to the extraction pad before your ship goes down.</p>
+    </div>
+    <div class="actions">
+      <button class="primary" id="copy-picks" type="button">Copy my picks</button>
+      <span id="copy-status" role="status"></span>
+      <textarea id="picks-text" hidden readonly aria-label="Your picks as JSON"></textarea>
+    </div>
+  </header>
+
+  <section class="screen-block" aria-labelledby="screen-h">
+    <div class="section-head">
+      <h2 id="screen-h">Game screen</h2>
+      <p class="muted">Live mockup at the game's real resolution (416&times;228, 16&nbsp;px tiles). Click the screen, then fly it. Every sprite you pick below swaps in here.</p>
+    </div>
+    <div class="bezel"><canvas id="screen" width="416" height="228" tabindex="0" aria-label="Game screen mockup. Click it, then use W A S D to move and the mouse to aim."></canvas></div>
+    <div class="controls">
+      <div class="keys" aria-label="Keyboard and mouse">
+        <span class="label">Keyboard</span>
+        <span class="key"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd>&nbsp;move</span>
+        <span class="key"><kbd>Mouse</kbd>&nbsp;aim</span>
+        <span class="key"><kbd>Hold click</kbd>&nbsp;fire</span>
+      </div>
+      <div class="keys" aria-label="Controller">
+        <span class="label">Controller</span>
+        <span class="key"><kbd>L stick</kbd>&nbsp;move</span>
+        <span class="key"><kbd>R stick</kbd>&nbsp;aim and fire</span>
+        <span class="key"><kbd>RT</kbd>&nbsp;fire</span>
+        <span class="pad-status" id="pad-status" role="status">No controller yet. Press any button on it.</span>
+      </div>
+      <div class="keys">
+        <span class="label">Aim</span>
+        <span class="seg" role="group" aria-label="Aim mode"><button type="button" id="aim-360" data-aim="360" aria-pressed="true">360&deg;</button><button type="button" id="aim-8" data-aim="8" aria-pressed="false">8-way</button></span>
+        <span class="muted" id="aim-note">Free aim. The beam leaves the hull edge facing your aim.</span>
+      </div>
+    </div>
+    <div class="screen-notes">
+      <div><span class="label">Top bar</span><span>Score, ships left, vault number and the value of the cargo you're carrying.</span></div>
+      <div><span class="label">Room</span><span>20&times;12 tiles. Doors differ in width per wall; some walls have none.</span></div>
+      <div><span class="label">Vault map</span><span>6&times;6 automap. Amber is you, cyan is the extraction room, red X is your wreck.</span></div>
+      <div><span class="label">Cargo</span><span>Treasure you hold. Lose a ship and it drops at the X in that room.</span></div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="ship-h">
+    <div class="section-head">
+      <h2 id="ship-h">Player ship</h2>
+      <p class="muted">A round hull that never rotates. The beam leaves from whichever side or corner faces your aim, so pick a symmetric sprite that reads the same from every direction.</p>
+    </div>
+    <div class="grid" id="ship-grid"></div>
+  </section>
+
+  <section class="section" aria-labelledby="enemy-h">
+    <div class="section-head">
+      <h2 id="enemy-h">Hostiles</h2>
+      <p class="muted">Six roles. Points are per kill except the Scavenger, which can't be destroyed: shooting it only drives it off.</p>
+    </div>
+    <div class="grid" id="enemy-grid"></div>
+  </section>
+
+  <section class="section" aria-labelledby="loot-h">
+    <div class="section-head">
+      <h2 id="loot-h">Treasure</h2>
+      <p class="muted">Five tiers. Each doubles the last. Bars are drawn to scale against the 8,000-point top tier.</p>
+    </div>
+    <div class="grid" id="loot-grid"></div>
+  </section>
+
+  <section class="section" aria-labelledby="env-h">
+    <div class="section-head">
+      <h2 id="env-h">Rooms &amp; markers</h2>
+      <p class="muted">Pixel Search sprites are objects, not seamless tiles. Walls repeat a single plate; the floor is drawn in code.</p>
+    </div>
+    <div class="grid" id="env-grid"></div>
+  </section>
+
+  <section class="section" aria-labelledby="rules-h">
+    <div class="section-head"><h2 id="rules-h">How a vault plays</h2></div>
+    <div class="rules">
+      <div><strong>36 rooms</strong><span>Each vault is a 6&times;6 grid. You enter at one room; one other room holds the extraction pad.</span></div>
+      <div><strong>Carry, then bank</strong><span>Treasure only scores when you reach extraction. The more you carry out, the bigger the bonus.</span></div>
+      <div><strong>Wreck marker</strong><span>Lose a ship and your cargo drops where you died, marked X for one life. Dropped loot stays in that room until you pick it up or the game ends.</span></div>
+      <div><strong>+10,000</strong><span>Bonus for entering every room in the vault before you extract.</span></div>
+      <div><strong>Extra ship</strong><span>Every 10,000 points.</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Sprites: <a href="https://huggingface.co/spaces/cfahlgren1/pixel-search" target="_blank" rel="noopener">Pixel Search</a> catalog of <a href="https://huggingface.co/datasets/Angais/pixel-art-atlas-1.4m" target="_blank" rel="noopener">Angais/pixel-art-atlas-1.4m</a>, CC0, AI-generated. Numbers under each sprite are its catalog id.</span>
+    <span>Fonts: Silkscreen and Chakra Petch (SIL OFL).</span>
+  </footer>
+</div>
+
+<script>
+const SPRITES = {"player":[{"id":378902,"subject":"drone","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABIUlEQVR42mNggAI2FqH/yJgBDeCVBwn8eD71/8c1EXCMrgEk9n2lP5gGqYUbAtN8I0QdRUPhtmAUjCwHUgs3BGY6iE61Nfm/cvVmuAGnXs4EY5gBIDmQGhAb5BoMAxTkrP7HRWX9b++cjmEASAwkp6hphWnABQ/9/z93hMOdCFIE0jTtfDEYg9gwjTDNID0o4bDGVheMQQqNUswxDACJgeTWeZmAMdaYgGFcBuCLZhRDCBmAUzMsrnEZgJEG0DUjB6LfbCd4GvDtcYIHIkoaQNccZOEITwcgG0EaQdjIyxaeDkBqYIkPIx2AbIlPrYCzkTFIDCQHY8P0wNMBshfMVO0w8gKyGEgtRjoACYAwyI+wfIEcRiCx21HWYBpFM6XZGQAGnZTow//etgAAAABJRU5ErkJggg=="},{"id":378907,"subject":"drone","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA3klEQVR42mNgAAO2/xBMLEBRz/ZfL33X/7Ttz4k0hO1//LE3YD1Q9RABEIja8AjFEEl5h/8gjKwZpAYESu98RHUFSEI/fAFUAxtWDJIDqUG3CG4Iwka2/yqmRf8da4+AsbJe3H90ebyBA9Pc+OkdGIPYqC4jEEjomkFYxaoZv2Y5OW+4M2EGwDTDDIC5AjVgoUBc3AjFAHRM0ABkLyAHIAir2vT9h7mQyBQGMQRkK7LNBAIRPZrY/oO8BfMagWjElpDQ0zzOhIRIyuj5AV9SBumB5wVQQCEJkJqZKMvOABUOFEWkV6RiAAAAAElFTkSuQmCC"},{"id":378911,"subject":"drone","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAx0lEQVR42mNgGCSA7T8qJkkd239hQSkUjN0QnOogpoEEfL3DkDRjs40NrAahGckVIIkJUxbDJexsA8FYWkoJRQNIDUgczZVsYIUwDNOIjEGGwGgs3kT1H0whNxcfVnEc4YQICxCtxSsAxpZCwmCMqhFrTCE0gzR8tjb8//Pylf+ffdz/L5aUABuGrIawAUCN7xsa/z+Xk8EwQF3NFDMMUAXZ/l9TkgXj6WJS/z0FhFDkiDAAIgbzP7o4FgNggYgr6TIQoXagAAAWNrWKCTnkWgAAAABJRU5ErkJggg=="},{"id":378913,"subject":"drone","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA8UlEQVR42mNggAILheb/IMxADgBprNe+CMZkGsL+HxnjNgRVHVxQXk71/66sa/8RivBZxMAAUisuKg0zhB3MyUqvAWOEAdhsYwerKS7uQTaAAW4IDIP47h5x/60sfP6rqhqBMTY1WP0H8g5IM0gTiA0zAKGJ/T8eb7KjaELGqAbgCV1kZ6JjbjYh7LEAsgEWC5hORTUcpA4jFkDOBoVsREQKXCLQ/CQYg9KEp3LHf/TYwhkLIHaCznqwZpBNJfb7kRIWO+FYAGkGYZDI04V3wDS6IXgTm4/aXLDNIM0wA2BeISpXQPyLAKi2k5A7kTE+tQBiJepidRtCgQAAAABJRU5ErkJggg=="},{"id":378936,"subject":"drone","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAqElEQVR42mNgGDSAiYHrPwyTrAYk4JzX9d+gqRuMsRkCUwPDWA1RlHf+j2wLNqyj74HdlcgG+D+49v/Ejx8oGCSG0wCYJmQM04QLoxgC4kjHVcIxNg0u8w+hqMHqChhGVoiuCW9MgSQqGvvACkSF1FEwshxOzfX9i1ACEqYZFrWgAASpwep8ZM0wbyDbjhxTGIbADEAWRI9/fGqxC+JJzrQxgBjN2NQDAD179QN4sJIdAAAAAElFTkSuQmCC"},{"id":378940,"subject":"drone","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABIElEQVR42mNgwA7+48BEgf/uHnH/s7LaUbCrSyhBg8CSIMVd/ev+83IL/5dV1vlvZeEDxupqpv/NjE3+61o4YDUErAmED206/T80sgiuUFRUAWwAzEBVcVUwjWwIWAPMAHSnI4cByBCQwSAMMhhmCNh5IH9j8zu6IWAXaZuhGAA2BOQskEHI/gZhJOeiGII1HGBYhZv/vwWXCBw784qBxQhFKVxzq4Tc//saKv8/p2eA6TpxSXRDMDXD/JouIv7/vqHR/29t0/5/W78EbADMEDRXoBoA8i+KAdMngekTior/Z8tLohiAFLAIA2ABA4oqkCEgjTAMCwuQHEiNjZUjzkBkgBmCDROKBRTDQGkfhNGiEt0y/JkKZCsxtuE1hJBmALhSCYcv/IMLAAAAAElFTkSuQmCC"},{"id":474241,"subject":"flying saucer","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABGUlEQVR42mNgGLSAhUnoPzImWfPcB0/huGjRWeINgWkGgYOv3/5ff+cV2ACfkt2EDQEpAGmAaf6+L+D/lzCz/63ymv+907eDMU5DYH6FOftTr93/J+4G/2er6/3X49MBY9foBdjDBCQAAt8/nAM7tWzzVbCtIAzTDDPgfZUV2GC4ISAGSCMIwwwBORWkGIRhTgfhTxdKwPjjmoj/t510IIaAiA+ng/7/er3xPzKAGYqOwQakmqEasN3JGuxnkEG4NILwjwUeYOdvVjP87yhkhuqNTG2z/2tsdcEYpBBkIIiGYVBswDSiaEYOyAo1P7AETBE6RlaDMyrhAfug/P/vO/H/PxY4gqMSWY7oFAkKLJCzSc4L6IkLnxoArvlLDePw62wAAAAASUVORK5CYII="},{"id":1196843,"subject":"starfighter","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABAklEQVR42mNgwAKYmbj+EyPGgEuzr2/6f2QN2MTwGjBt6QGwYmS8ZO0B3Aag2/b4zSew4l+//v4/f+Ppf2QxDD0gRmpGJVwSpji+sA1ugI6+B4oBIDo6rhjCBxHLdp6FOxWkEaQ4s6wdbgBMzMImBq4OpgdswPvPv+B4/6mbGAaA2CAxUDiAaBiGGwBSdFHH4P+bSK//fWo64EAEaWpvm/BfW8Ma7IKKaVv+t8prgtUsVzGChw3YgMXLt6KEOMipIDGQZpi3QOGArAYWUwy4QhjkldKqXrgLcMUUigvQoxY5GtHlUPTgSrq4DCAqaRMygKgkTbEBoCgDRR1ZBsAMIaQZAIIsMsPrvt+9AAAAAElFTkSuQmCC"}],"hunter":[{"id":474279,"subject":"flying saucer","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAw0lEQVR42mNgGM6A+T8qJlHziR8/wNh39a3/+qFriTEEYRtIE0iz84JbcANUbcvwuYj5/7PyYjBuldcEa4RhkGYQVjJM/+8pIPS/V1Dkf7iwGLIhEM1N2x7+v6SmCMa+Cjb/nZXdUTBMM8yAVBE5mCHMcI0f0j/C2dgwzIA/N8NRDcgWkERRWHoHYVDJ7Sg4+0uY2f9qITGwehBG8QYIzxMRB9uAzfZbqkpgWxEascYKRAKkEORPdExCmkBPRGQlpqECAEzoy2lWqXpfAAAAAElFTkSuQmCC"},{"id":378902,"subject":"drone","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABIUlEQVR42mNggAI2FqH/yJgBDeCVBwn8eD71/8c1EXCMrgEk9n2lP5gGqYUbAtN8I0QdRUPhtmAUjCwHUgs3BGY6iE61Nfm/cvVmuAGnXs4EY5gBIDmQGhAb5BoMAxTkrP7HRWX9b++cjmEASAwkp6hphWnABQ/9/z93hMOdCFIE0jTtfDEYg9gwjTDNID0o4bDGVheMQQqNUswxDACJgeTWeZmAMdaYgGFcBuCLZhRDCBmAUzMsrnEZgJEG0DUjB6LfbCd4GvDtcYIHIkoaQNccZOEITwcgG0EaQdjIyxaeDkBqYIkPIx2AbIlPrYCzkTFIDCQHY8P0wNMBshfMVO0w8gKyGEgtRjoACYAwyI+wfIEcRiCx21HWYBpFM6XZGQAGnZTow//etgAAAABJRU5ErkJggg=="},{"id":378907,"subject":"drone","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA3klEQVR42mNgAAO2/xBMLEBRz/ZfL33X/7Ttz4k0hO1//LE3YD1Q9RABEIja8AjFEEl5h/8gjKwZpAYESu98RHUFSEI/fAFUAxtWDJIDqUG3CG4Iwka2/yqmRf8da4+AsbJe3H90ebyBA9Pc+OkdGIPYqC4jEEjomkFYxaoZv2Y5OW+4M2EGwDTDDIC5AjVgoUBc3AjFAHRM0ABkLyAHIAir2vT9h7mQyBQGMQRkK7LNBAIRPZrY/oO8BfMagWjElpDQ0zzOhIRIyuj5AV9SBumB5wVQQCEJkJqZKMvOABUOFEWkV6RiAAAAAElFTkSuQmCC"},{"id":378911,"subject":"drone","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAx0lEQVR42mNgGCSA7T8qJkkd239hQSkUjN0QnOogpoEEfL3DkDRjs40NrAahGckVIIkJUxbDJexsA8FYWkoJRQNIDUgczZVsYIUwDNOIjEGGwGgs3kT1H0whNxcfVnEc4YQICxCtxSsAxpZCwmCMqhFrTCE0gzR8tjb8//Pylf+ffdz/L5aUABuGrIawAUCN7xsa/z+Xk8EwQF3NFDMMUAXZ/l9TkgXj6WJS/z0FhFDkiDAAIgbzP7o4FgNggYgr6TIQoXagAAAWNrWKCTnkWgAAAABJRU5ErkJggg=="},{"id":378913,"subject":"drone","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA8UlEQVR42mNggAILheb/IMxADgBprNe+CMZkGsL+HxnjNgRVHVxQXk71/66sa/8RivBZxMAAUisuKg0zhB3MyUqvAWOEAdhsYwerKS7uQTaAAW4IDIP47h5x/60sfP6rqhqBMTY1WP0H8g5IM0gTiA0zAKGJ/T8eb7KjaELGqAbgCV1kZ6JjbjYh7LEAsgEWC5hORTUcpA4jFkDOBoVsREQKXCLQ/CQYg9KEp3LHf/TYwhkLIHaCznqwZpBNJfb7kRIWO+FYAGkGYZDI04V3wDS6IXgTm4/aXLDNIM0wA2BeISpXQPyLAKi2k5A7kTE+tQBiJepidRtCgQAAAABJRU5ErkJggg=="},{"id":378936,"subject":"drone","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAqElEQVR42mNgGDSAiYHrPwyTrAYk4JzX9d+gqRuMsRkCUwPDWA1RlHf+j2wLNqyj74HdlcgG+D+49v/Ejx8oGCSG0wCYJmQM04QLoxgC4kjHVcIxNg0u8w+hqMHqChhGVoiuCW9MgSQqGvvACkSF1FEwshxOzfX9i1ACEqYZFrWgAASpwep8ZM0wbyDbjhxTGIbADEAWRI9/fGqxC+JJzrQxgBjN2NQDAD179QN4sJIdAAAAAElFTkSuQmCC"},{"id":378940,"subject":"drone","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABIElEQVR42mNgwA7+48BEgf/uHnH/s7LaUbCrSyhBg8CSIMVd/ev+83IL/5dV1vlvZeEDxupqpv/NjE3+61o4YDUErAmED206/T80sgiuUFRUAWwAzEBVcVUwjWwIWAPMAHSnI4cByBCQwSAMMhhmCNh5IH9j8zu6IWAXaZuhGAA2BOQskEHI/gZhJOeiGII1HGBYhZv/vwWXCBw784qBxQhFKVxzq4Tc//saKv8/p2eA6TpxSXRDMDXD/JouIv7/vqHR/29t0/5/W78EbADMEDRXoBoA8i+KAdMngekTior/Z8tLohiAFLAIA2ABA4oqkCEgjTAMCwuQHEiNjZUjzkBkgBmCDROKBRTDQGkfhNGiEt0y/JkKZCsxtuE1hJBmALhSCYcv/IMLAAAAAElFTkSuQmCC"},{"id":474241,"subject":"flying saucer","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABGUlEQVR42mNgGLSAhUnoPzImWfPcB0/huGjRWeINgWkGgYOv3/5ff+cV2ACfkt2EDQEpAGmAaf6+L+D/lzCz/63ymv+907eDMU5DYH6FOftTr93/J+4G/2er6/3X49MBY9foBdjDBCQAAt8/nAM7tWzzVbCtIAzTDDPgfZUV2GC4ISAGSCMIwwwBORWkGIRhTgfhTxdKwPjjmoj/t510IIaAiA+ng/7/er3xPzKAGYqOwQakmqEasN3JGuxnkEG4NILwjwUeYOdvVjP87yhkhuqNTG2z/2tsdcEYpBBkIIiGYVBswDSiaEYOyAo1P7AETBE6RlaDMyrhAfug/P/vO/H/PxY4gqMSWY7oFAkKLJCzSc4L6IkLnxoArvlLDePw62wAAAAASUVORK5CYII="}],"sentry":[{"id":699915,"subject":"laser turret","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAzUlEQVR42mNgwAmY/qNikgDT/6LTyf+br+f8D1pd9F8rMIEUQyCaX/+4DcY7niT89z2Q9F81K5AYQ5jAtiJrjj4d+9+qL+C/mJnXf/O8REKGIGxfeiMEbADIZpgBRLgCYgDM2VQ3gGgvgDSDFMNiAISJNkBH3wMDS0vowzFRMYEfE9DcOOca2FaYa2C2EuECiGZnjwwUA0T4FVEMwGMI0//QuA6wITCDQNjbvwyMQ8KawRivASAbQYYg4/jcGWCMHJh4vYEtFojUTF4sAAAyAgZqpI10VQAAAABJRU5ErkJggg=="},{"id":699902,"subject":"laser turret","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABHklEQVR42mNgQAJMTLz/icEM2ABIQl3Z4L+tbcT/kPDy/xOn7oZjEN/XN/2/ibHnfwkRPUxDYJpBikAK8GGQBSC1KIaAOGZWySgKz0jL/v/a3fb/uZzM/01iEihyIJdgGICu+WNl5v8/v07//3vC+/9na0OwGLIarN6AST7W0wZrxGUA3oAEYZCzsRmANxaQDYG54Ns2HQwDGAgBmAE/DnqAXfBjs9n/jwWOpBnQ0zX3/8R1F/639yz/P+PQs/+5tYv+27jmEOf80qpesEY7p1RwdIGiF6QZZIhHRDt+Q2AGGOqGgRXqsbH9L+MTBGpgBBtElAEghbDQBhkAwiADkOXwGiAvbQt3ATIGieFNA+iGIGNVVS/iNBPK1tjUAgB1hBaci3ZLHwAAAABJRU5ErkJggg=="},{"id":699904,"subject":"laser turret","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA40lEQVR42mNgQAJMDFz/icEM2ABIwskt8X9a4RwwbWwZCqbRsYyELnZDQILiwor/ebgEwDS6rTAxkDxOA0CmIxvi4RQDF4PJE/QGMoYZQND/uAzTULf6n1u7CI5BfKINASkEadLR9wBrBOGQ8HLiDIFpBikG+Z8oA5D9CbPZmYv//xwpObAhID5OA0ACb400/leLK4DjH4RNhcTAYiA8RUYOvwtAAtVADSBNINtAWJmdD2w7CNtycOF3AbphIBeAFJpCDQVpJskAkGJYOMAw0dGIbABFaQAWdTBMUirElqxxqQMAXRrkUzXPrP4AAAAASUVORK5CYII="},{"id":699908,"subject":"laser turret","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAyUlEQVR42mNgwA3+Y8FEAbDi+OSJ/9MK54Cxrp71fykJJYKGwG1SUjEGawJhb/8yogwBS3CyS4IxiA1SDMIwg0Bsbk6e/+LiRlgNASuIXXrzv7qhH1wRNgNwuQIsIS9t+z+geR95BoAwyACQZmRvEGsARrThCgO8BsAUgzAoJkAYZhAxBqC4AqQYhklNUP8dnGPBCQnmGmJsxogRkAHITifadnTnk+IFsK0wjBygsFgARTHeWAApAGFQ+kcOfZg30FxEVPbFh8EAAM7j3wglTTRVAAAAAElFTkSuQmCC"},{"id":699910,"subject":"laser turret","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA7ElEQVR42mNgwAHYWAT/I2MGUgBIw6+jDf9/Xun4/21jxf9PVd7EGwLT/Pf7HTD+uT3j/2M9bTAmaAg2zV9SfMGa58sQYQhIEqQJrjnMDGzALQ1N8g0AaT4jLft/irQ68QaAAg/ZAJBmgi4ASZiY+v53cI79r61l8V9Pz+m/EL/cf1ExPQyM1RCQYE3Duv8b9j76n1my7H9Mctt/P9/C/y4q5mCsJSAB1ggyFK8riMEEoxLmFZg3QGI4nY7NGyC6e/IRsDdAhsCcD2LjdT5IE8jfuAwAuQbkOpyBCAs4sg0AKcaGQZpgYUD1WAAAHw8XuOED56wAAAAASUVORK5CYII="},{"id":699919,"subject":"laser turret","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA4UlEQVR42mNgwA7+Y8FEg/8RsXkoWEJEmWhD/ldXz/x/9OTl/1t3HoMbYKhnR5whiUn1YI1/fn3833zWHcUVxBjyH2YASLP7wiCsBoBoXIaADWgyUQZj9HBwkRAlzoBUE10MzSADiTKgyw7TdpiLLMRE/8twcv5XUTLEbYCXGqoB1YZq/20d/eEuABmgJK2A2wCQE4nBeGMChgU4BP7jSJEEExRYMyywkGwkTnN7z3IUDAoHUBjYWbjhDUB4Mg7yTwFjWCCCMCwKCYUB2NkwnKEtC446EIZpBMUC0YFIAMMBAMv/BRDiHSC/AAAAAElFTkSuQmCC"},{"id":699920,"subject":"laser turret","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAnUlEQVR42mNgwAq4/mPHRAGu/3cevsLAnXP2EWMIRDMMoBvSvfwoPkNQNWMzIPvQwf8pKUtxGYLb9k+h0f8X6/oRZwA2DDKgQo0CA97om1FmQL1B1H9ltVR8BnD9b5q4miDWM/GEY6yGSIhqEYXxRiUI55fNAmMzpyg4llEwIzZFcsFTnpCgBBg7R+YjGUBkUh54A0ChTrYB+DEqAAAdP2rjQO5tCQAAAABJRU5ErkJggg=="},{"id":1078163,"subject":"sentry turret","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA+0lEQVR42mNgwA3+o2GSwP+UjCYwtrP1/q+oZE7QEGQFYI28XNIo2MjCC0UNsoH/l+08+z86oRIsOG3pgf9XH74F0yW1U1EwzBBk9XAbYZIgCZDmgIhcFAySB7kEXT2KAaJC6mADYKaDaJgmmAEgjNMAkCSyAUiBB5dnY+XGbQBMIT4D8HoBphikEYZVdRzAGKYZmwEMWBIL2KkwGsbGEe2YacJAywSsCeQCmM1ILsCfAjsnL//v6BwONgDkTCU5DbBGUAyBvILXZpAGUJzDEk5N6wI4DZIDuQyfS8C2gWwBuQCGQRqR0wAhr/yHGQSLBSwaicqZ/3FgDAAA52YY6gnBRHIAAAAASUVORK5CYII="}],"mine":[{"id":967968,"subject":"proximity mine","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABNElEQVR42mNgwAOYmLj/gzADOQCk8c/PS/9f7YomzhBk20B0dmbO/2/36v7fTND7LyGmgSKH1UCQ4JsL1WBJZTmD/+6+af/11czBmvl5pcEYJIfTRSDB81GaYGeDMLoBII2X6+z+TzTQwW0AyMkgzX9/3/3/63nv/48b/OH4ywJzsAUbE/UxDQAJgGyCGQCifyzwAGsE2YxswNpcS7h34JrtLNzATp5aGgkOB2SbYYYcTbeGhwUIV+sYQgwBEc9D9OABZyKn+d/WNgKMQQaDXAaSA2naZWUID5NaDQVUV4AkQAbADAMZ8PpE2v/bTjpwTaAAhLGxhgNIIwiDQh/GRnY2cnRijQWQv0D+RceggAPhbYV2/9PUVHAbAFIEo7FhZDUEkzIuZxOdwWDJFhR9FOVIQpoBsygzbKXRZeQAAAAASUVORK5CYII="},{"id":820799,"subject":"naval mine","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA0ElEQVR42mNgwAtY/kMwWYDlv0dE+385aR1iDYHZhsAgA0RFFf5jk8NpI0gDiAZhZ4+M/3omnmCsqmkOlgPROA0AKQiN64BrQsYwQ9nZ+PG7AKTYP7wW7hqYAbCwQHgJi/9hBoAUgTSAbIMZABKDYbRwYIE7D9nJyJrRDQDxjS1DYYawgG0DYWx+x2YAqkuQvIBPM7IhOKKSBRxFIJeAvAPjwzTBxHAEIsQAkL+RAxDduYhUicMA5KjC5Wc8SRszucL8TWRSxjQQ1QAycyQhzQC9UeV/r6kCNAAAAABJRU5ErkJggg=="},{"id":820803,"subject":"naval mine","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABUklEQVR42mNgAAJGRp7/DFgASByfHJyxZEINhkIQ/9e7A/9fbwrFKgfXAyLmdFT8P7SiFa4QZvPBMgswRnYJiAaptbP1RhgA4oAMgZn68nAs2HYY/nIqB+4SkJr40ID/poau/1G84eXm+d9LUQpDM4gPwufbbcCGgNSgaEb2F0jhzyfLwZLvT3bCNcO8sTNT//+ZMmvsAQszAOZfGB9dDKsBIAGYE7/crAQrANEvN/vAMUgMJA8yoMJKDdUQmAEg264tsAUrRNYM4sM04zRgXoD6/+fzHMESiRrycENA/oZFKUhzg6MKGGP1BkwxCIvzicCdDsMgm7FqhkclMIpALoEFFggjxwDIAGMxWey2gxIIKEGBFIBsASmG2QjDIDmQmrWzO/9j5IW0ALv/6mqWKE4GaYDZCMMgNSC1KHkBJAjTjOwqmCvQxUEpESMpYwsYYsQBpV9xT1zTXkQAAAAASUVORK5CYII="},{"id":820813,"subject":"naval mine","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA+UlEQVR42p1TMQoCMRC8TsFC1ELUQhARUbAT5DwsbDxf4NUqKOIPrhErv+ALfObKRCcmudwpBqbJ7szObjZBUHzkja/HlySb5Cz93jBPRKxET5Iil0sVb8zkSLyI5LA9iWFZOu2uBTMGcjidfQRQCSK0vD9eFaJlYqFWbcpqvZNwHstkYLemLlAJxMvtIePRqwLJEMYdRFyyFkFimt5VYqveUEmoRkAEAnkvo6uxVxBIhrufBeCAvZJMYqEAiASEKGCQigVgkcPi1LEHdEB4BwjLCPLdjQ3MkF0R/Uxmgg+MucN0LzRg31jljCPLhW/fzen/80vdyt7zBEM28dvG6vwPAAAAAElFTkSuQmCC"},{"id":820814,"subject":"naval mine","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABGElEQVR42mNgwAOYmQX+gzADOQCk8ee9mf/vd9gTZwi6bSD28mjr/wkamhjiWA0ECX66UPIfpuDb8dj/Py9kgjHMFSD8cXsYbgMKzczBin++PYWKoYZUW+j/D1HSwu0lsL+hGkAuOJZoAucjuwSn/8EKgRreT3cEa3aRVodrhhmQa6r+HyUcYKGNbMDCAN3/2kJqKJrRDYDpARvwbr472H8wp/9+OBlFI0gMJA8zABQOcO+ACJipIINAiu9Um6IY0OdpBqZB3oKpjVcxRvUGCIMUgEwGGYSMQYpBXgJpxggD9MCc4KABdgEyvlJlDsYwzTijEKQI5iVsGFkNVgNgyRaGQc4GYWQxFL8Tygsg20Cpk6i8QG52BgCBwFmVULaIgwAAAABJRU5ErkJggg=="},{"id":820821,"subject":"naval mine","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA2ElEQVR42mNgwAFYWfj/C4qo/wfRIMxAKgBpiph847+8YTBxBviU7IYrhNmq7pyF4QoQrWyV+B+rjU5Jk/7DaGwYJIfXRTDNlTve/HfM3whWDNMMco2EtgthzWlLnv03C2n4L6tmgeIakLNBBmA1BOZHmGKYv5GdD3INsgFwQ8AK0+ajOBcdg1wFCwOYASguQXcBOkaODQwXIHsD5kRkzSC/I2smGJAwRbgwwUQFcx4uTHQy9vKP+V/aOf2/uYML3Ask5YMJi3f9zyxrJ88AmCFka0YPD3xqADmE6AzorAw8AAAAAElFTkSuQmCC"},{"id":820833,"subject":"naval mine","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABW0lEQVR42mNgwAOYGHn+gzADOQCk8ffTef+vtTsSZ4ipqNB/ZBtB9OU6u/8R6uooYiDMyyr4H6uNXx5M+P+w1w2s6Ne7A3D8fV/sf5g8XhepCIr/XxWl/v/PjwdgDNIA0gzCn7Yn/N8Xo/MfpAavv0EaQa7wVRSHG+AkI/6/wkrt/9tlTrhtBzv7Wh3YAJBmEB9kK8wAkL8vlBv8d1FSxTQEFmAgDSBbf38+DTYMZgAML/RUBxswzUMLYQjYplMpYBtATgRpfD/dEYxhGp+1mYDxBi9NuAtArgEbAiJA/gPRoED6tN3vf6q+HNjZMM0geVA0gwIYZgBIDdwAkEKYv0GKYGkCFGUgA2B8WJoA0cbS8mjeAPoXllBAfkXGID/DXAkLL5SABHFATkZOcZYSWmBbQBjERpZDsR0mCLIJWRBmE8xmZHF0MXhMoCuEuQBdHGtyxpbCcGVnZDEAY0FH8RbMwGgAAAAASUVORK5CYII="},{"id":820846,"subject":"naval mine","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA1UlEQVR42mNgwA3+o2GSwP+ahnX/45Mn/ndwjv0vK6lBkiFgxRbmXmAsKigDxsS6BGwzOga5AoSRDMKtOS6647+XR9b/kPBysCZDPTsUA3AZAtcMUwQyAGQQCCNrxmYIWDFIs5KKMdyvmSXL4AYgBSK2cGGAOxEU6jCFII2wgEQ2AJtX4AaAMMhmEIZphmGYa7B5A+x0WGCha4RhkBq84QAyAISR/YisGdkAbAkLJeHA/AvSBHIVTDNIDG9UIitE5uNzOoYhyE4nVTOKITg0kpahiMnOAM46CTQErUdDAAAAAElFTkSuQmCC"}],"warden":[{"id":78441,"subject":"battle mech","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABSklEQVR42mNgQAGM/xEYHeCTgyo4Iq/6X1xEDkyjKsQnh6QIpKCsYe5/eTmN/6g2MoLFQHIgNTgNsDK1+G9m6vSfn0f4/88d4f8/TDT7fy9V7X+pugxYDCQHwni9AcIgTSCFFTNOwQ0EiREMg+/z7P9fj1EA2w7SCHI2SPPHCq3/tRoKYEP0xMWwGcII1pBWMvF/moIYWAPMCyAMMhRkAMiw0MgiMEYyBOJkkO0gBSA+SAMIg8RhYQALPBD9a4PD/zcZOjBDGMECIIUg22H+DJURg2OYwTDDQS4866uKMACkuV9fAW4LyCCY7SAMcz5MDmQIwjIg4ROUDFcA8grMdJBGEOZhZweLw2ICLQwQ0QdSBPIbSBN6QoKFE8Go3OaoguRnhDjIVUj+ZsBpACzg0A3ALo4GQH5zdA7H6gJQogLJa6lo484L5GRnACQaJrVDCKnGAAAAAElFTkSuQmCC"},{"id":78415,"subject":"battle mech","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABK0lEQVR42mNgAAJmRt7/MMxAAGCoBTG01Mz/f51bDabxGYJVLYgACdyxgkjADEC2CVkMQy2IAAm0ymuCaZiGd8v9/v96vRGMQWyYOLpasAGOdqFgRSAapllUSP3/u/nuCDbUECe3RDAbRMMNACkICWv+Lytj8l9eUgms8dujDrA4CIPYIE0geRA/JrkNzEYJSBg+pmMENuDX8zqwRhgGGbDYzOQ/3hgDCYJMBvkP7HwYBmoGGYxiK76oAim8bGv635BDAIxBBhKt2VNe7z9yuIAwiI0sh1MzzL8g20BRBfNCpYIGWAwmj9P/IL+CMMj5IFtBGkEGgeRAYrDwwGkAyK8gnCGt9h89JYIMg8njNACkEYaRFeGTQzEAFmjoIQ6LGZg83oDElUhwyQEASNFFlOPddHUAAAAASUVORK5CYII="},{"id":78416,"subject":"battle mech","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABa0lEQVR42mNgwAKYGHn+i4sb/SckhlUjCOeXzfoPY8NwTn4vCh+r5p8fjv5/udkHrOD3q7b/3x+U/3+5O+j/Gi31/zD5b1cCwGIohiBLZuqr/P98PfF/qokuWJGnpef/5322/+/k6oLFQRjExjAAZDNI4sfzqf///LwENhCEQRpABkgJiv9/1GgBxjxcQpjeAAnISmqANYBcAqNBmq/paoENAKnR0PICYwwXgAIJFMog9vN5jnAM0gzyFizwBAWUIK4CyoENARE/3m0FCxyLhPhNUd4ZA8MMAAUuyGV3qk0RBiCbqKZsAg4PeIABFYL87GxlD5YHxQyGASDnW2mbweMb5EyYF2DpAiQGYkcGxIP5MFehJCB0xTAMMhw5IYFciTUWQFEIczZMAYgGORmEQVGINyXCog6XAcjiWA0ARRnI3+gGPDXX+d8qIYffAFj8xidPhKcHkDgocf06FQE2GCXgcOVE9ByHSxwGAIG+e6ZSYVGDAAAAAElFTkSuQmCC"},{"id":78423,"subject":"battle mech","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABEUlEQVR42mNgIA78j9rw6D+IZiBWAzrWD19AtAH//eZc/l93+jWYBtnsmL/xvxC/BEEDwApAimGaXOs2wbGySwu6q1A1p21/DnYmyFaQbV8/vkKhDVIX/Ne0yAKrc+8+jmEI2EZlvTi4AcgYJAYyHMQGq0O4BmGAhpYX3CaQBmQM0gwzAOQKbOEBF5SVMYFrQMYgC2D+1zMPQDEE7C/kkEb3AgwjBzJytIJDGc1pYFtMndLBGFkcpA7kTVlVB4QBIEGQ02GKkMMDhEFsmBjYm0DNyAagpDw056GIa3t0400LYIPQnIwijuRK3KkROcCIEMfMAyAMSlAgDHMqTBzkBSRxTANAgQmLDfSQN/TIx+oKAHasMPEZ3g6xAAAAAElFTkSuQmCC"},{"id":78443,"subject":"battle mech","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABVUlEQVR42mNgIBqw/odgkjVAcKqJLjEGIDT8+/cPjM/fePo/Kafvv5iQ/H9UQ7Fofvnh239Ts8j/0adj/9963/Hfb5/Pf/kI8/8iYhZgTcnVc8GG3nn2Ft0QiI1Ltl/7z8Ml9F9ZL+6/74Gk/6q2ZWDNIA0gF8BcdeDIFUwD5q489F9Z3QHubJBGEB/kKpABJmJi/ydOWg22JDijFZs3WMG2gzTDbILhI+1JYANAahBhgaYZpNFBVuo/jI2MQeECMhwkF6AqDxZDMoQV7ESQs2CKQBjkfBhGDn2YC1EMKOta/V9WxgQe0iCDQH4HYZDBIGeDxEHyIHU13ZsxAxE5/kFeARkKUggyDBTqqKGPIx3A/AzyJ7KhII2w2MCbGsFpAOhnRFhAAMgLIBfhiAFUV4AUgjAi8CDiIG/BYgmnZpATQdjBLwdNIUIOlC/wGoI9kFhxZiQA845fmlCT68oAAAAASUVORK5CYII="},{"id":78447,"subject":"battle mech","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABTElEQVR42mNgwA7+QzGx4qiKVoYb/TeWlv+PpOE/FnHsmtumb/tfa6kGVlS5481/9+7j/7U9uuEG4HPF/7Ttz/9bJm79LySg9T9i8o3/rnWbwJq5uKXBNIgPUmOQugCrIWAJJcP0/79ORYA1KchqgWkQH2QoSA6kRkTMArsBMA0gZ4NsAtGxS2+CXQXSBJIDGWRqGYDdgKaJq8ESTkmT/s/feAFsGwir2pbBDYBZBFOLojlVXw4sCLIF5ndkDAvAhRuOw9WCNYOcieY3sC0xyW3/00omgtkwcVBAgrxmHNiPMAAWQCA2SBLEBtkIomFsWVV3uOtAmpED8r+evvl/ZJdIiCqgOBmEQdEKU4skh5pEQ8LLUZyLLA+SAxlMKDmD/Y0tmkBOB8kRygtgP4IwFoW4xBEKQCEMCgMsCsHioASlpR6EOy+gYXxycHkAwiUeCPEB3eIAAAAASUVORK5CYII="},{"id":78458,"subject":"battle mech","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABJElEQVR42mNgwAu4/qNikgDX/4tviv9PPOTw37vS+L+JgxwphiA0J88y+2+UqUO6ATP3+qFolpDSI9UbXGCNyJpVxVX/i/BKEmMQ1//NBppgjQibuf7/PhT2/+sGj/+HjTTQDUEN7Z8XMv//fjgZjkGaQAaCDLjtY/K/W1YK2QCu/81NM//buJb+r6hsByv4czH2f2p+3X8VBROw5ttOOmBNIHqRqhKmAXa23mC/gWiYJmQMM8BGQA2MsYQBF1gjCIPYIA0g/CXMDOxfF6AmRODhDECIJMIGrv8NcrJwDDLkibsBOBwIxAIkBrKkpVECFuYqECZoQLIMtlTHBTYURxggFGEJZbA4KHZggYnDAEhKQw5M5FhydYsEyxMMRMzsi0scAgAHVwDlRmjIAAAAAABJRU5ErkJggg=="},{"id":1013612,"subject":"robot soldier","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABXElEQVR42mNgQAPsbOL/kdnofAZ8AKTgmaXZf5jG36/a/n/d4AHnw+QIGuIpr/f/fZXV/183/P9/TDUDazRTtSOsGe4KR7X/d/TV/7/zUQXjKdLq/+PErYizHYRBGmRV3f+7XUwH01Z75/9PF0d4BadmZD+7dx//H3B353//B9f+G1jXgsVAciA1GIbAJEEY5PxGcU24bciuAsnB1KEYAuKA/AzC1eIK4ED7tcHh/+/nOWD8tcjw/3o5TbAcSM1lEx3srgD5F0SDXACy7fs8+/8/JruDDYS5Slk7GLtmULQd0zGCOxmkUFkvDoxhBsNcCjIUwwtpjw7/95tzGa4Q5GRQGgAZjBwmIDUgtRiuMLIv+g/CIAm78BnwgANhENs1egGYhqnDmQZA3vh22AHuV5h3QGKwwMObFmBRCQpxmBgsUDGiDyMg3cxRQhxZDpYOQBirIegJB1u2xiYHAB0pOV7Zlps2AAAAAElFTkSuQmCC"}],"brood":[{"id":793431,"subject":"monster egg","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABAUlEQVR42mNgwAk4/qNikgDHf2n3ZDgW4zMixRCIZpXmuv/Ru+aC2RKK1v8F+FWJNYQDrhlEgw3QdiHWAI7/wnYB/51Wz4FrRjaACEMgBiBrBhvAq/xf3jCYOANACg0TSxCaof7n5xQnzgCQc9E120jakWAAUBMMo2smYADH/yi1OLACmGKQ39E1G4g7YjOE43+GQeL/SV6LwDSyIciaQXIV6rlwi+DaX7XY/dcSMwMr6LTvA2P0pAzSCJIHYZDag376/+G2v96YDHceCMNsQsYgW0EaQRhZDwOcgZSBQIaAFP7cEQ7XBNOIrPblNN//eHPisUQT8nKkhXjYf1SX4QYAPYzsbxf87Y8AAAAASUVORK5CYII="},{"id":793405,"subject":"monster egg","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABIklEQVR42mNgwAFYmfj/I2MGUgBIw7v57v/7lRT/xwoKgzHRhsA07zVX/h/EL/zfkEMAjIkyBKZ5jZY6XDOyN/AaAtM8TU0Oq2YQ/nU0/f9pKyXshoAEQZIgW6x5JTE0v8o3+/99pf//Cx76mAbAbM+VEMLQCNP8c0c4WDMIL1JFcwVYUYvd/1/X6uDegGm+7WMCdzrMAJg8imaYASAMYoMCEhQOIJtBmmEGaCg5grGMuDHEEBABkoAZADMMhmGaQRjkdKwGgCTRNcIwyPCpfnH/a3yC/q+x1QU7H8UA5BhANwjEb45NA2OYRhgW4VdENSBexRjFuTAMCgtQkkbWjGI7ckw4GlqDMcivIAyyFRS1BDWj50BkDciY6JyJLTHh0ggAtolGqHwW+7gAAAAASUVORK5CYII="},{"id":793407,"subject":"monster egg","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABH0lEQVR42mNgwAnY/6NikgD7f2W11P+amnn/jQP7/8vIuJJiCPt/OU3f/wapC/5bxiwBs6NMZv8X4lUmxhCI5vD99/+HnTjy3zh/F9j2BJ31YHEiDGH/7959HKxZ26MbTINcAtJMhAHsYKfCNKMbAHIJyAA8hkAMADkbpBHmBZjtYoLWYIzDAIjfQYEGshGGQbaCxG9kXfk/1e3S/6kGJ/6L8RlhM4Qd7kxkDNMMilKYGChAcRpgXr37f4Hf4v+udZvgGkAGgGiY7XgNAIUBKBYsNSvBhoE1Ap0OomFhgNMAkCDIZpBmmAGwwKvXvgjGMM04AxKkGKQRhEHJGKYYHeNNCyAFyFGmJ6EDdhEsHRCVnGE2wQzCE//EZmXcWRoAX9wVmVXtL4cAAAAASUVORK5CYII="},{"id":793420,"subject":"monster egg","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA7ElEQVR42mNgwAFYmPj+I2MGUgBIw8/vb8D4xpldYEy0Idg0E20IumaY82EGzOmowG0ITCG6ZhgGaQaJL57Sid0QZJtA7AdRGv9/fdz1/8uBNDAbJLZp0STsBsA0J8vIwW38/Tjl/+8/P+FsZJdgeAVmwMUsaxQD4Ow78SjhgdMAkP/71HTAkm8ydP5/PRoCxjAvwMIApwHohiBjmPzEvOT//rbmuA1ADkiQQTA2smY7dVVMA6ZXFqAYANMMwyB5kOZSbWVMA2CGwOIaHcM0+yrIYdeM7hIYhkUZSDNWp+MyBKYBHZOUobBhbGoBbiV25IhKJpIAAAAASUVORK5CYII="},{"id":793429,"subject":"monster egg","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAzUlEQVR42mNgwAFYmAX/I2MGUgBIw+m9q1Aw0YbANL/+cRvFgIl5yYQNQdaMbECgiDhxhoAk0TVLcwkR5wp025Nl5P7zcwiDMbIBi9pysRuCy+8gA2xFFcBskGasBmALdWQ8z0oFbAjMRQf99FENIWRAq7YMimYjL1vsBtjn+IAxIc1YDdiwsBCMQQaAaHTNu6wM4ZqxGgAKYRCGGYRuM4jGaQC6IaXqMmAFoAQEc7aehA5uzciG1McHgxWg+5mgZmRDYApJ1owrK+PL0gAFP16HXwFehwAAAABJRU5ErkJggg=="},{"id":793435,"subject":"monster egg","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABGElEQVR42mNgwAHYmIX/I2MGUgBIw7RHu/5nXl3/33T2nP/K2sHEGwJSeP7LJTB2ObACbIBaaB5xhiBrBmk0mdoBxjBDZFXdcRsCkqh/sh2sGaQJPQxAYnhdAjMApvnHrydg/H5Hzv8anyCwGE5XgARAzgQZAGJ/eTABrBnE/v3t6P9Vd/L/W3p64TYEZoDT6jlgiannY/7/eV0GZoNoog0AYRA7siURrAnEBtGxy6NQDMAIB2QDYIZYxkaAaae6SBTNOA0wTCwBSyIbgoxB3gPJi/CrYzcAJAmLc1h4ILPVzMLBmnEbAFQAcyIs4cBsRdaM1QCYIaDQBWGYQTD/gsRAGkE03iQN8y9MIcxAZD5RmQo9APFlawBlTEctHLV3/wAAAABJRU5ErkJggg=="},{"id":793439,"subject":"monster egg","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAsUlEQVR42mNgwAGYGPn+I2MGUgBIw9ePr/4/unEYjok2BJtmEN6xZhZhQ5A1IzufaENgikH0RX0NOIaJr53didsAdM0/v30Gsz8cCPt/20kHbghOVyAb8PVcGBijs3EagOxPuCE3MuH0fUMjFAMwDIFJIoc+ejpADkiiDMCGIwPi8RsAwhPaawlqBrExDABJ4LIZphGnATBDQPFMlmZ0l+DCeDUjGwJSiA2TlKGwYWxqAdQyl9s+/dL9AAAAAElFTkSuQmCC"},{"id":1164853,"subject":"spider egg sac","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABDklEQVR42pWTTwsBQRiHhyvl4iClXFzYsCV/ipK0cZBydiApRycHjpzltrHlaD+BcnD1uUa/0bu9O4tl6lc7M+/zzM5MI8SHFhExySP+aQDcR8fL6lL5XYJC51qX2X5WpTwy5OxUVWOhEg7HoxEv6EOytM3PEoIHu7wPpkAA0bBVC0owsN/MFayvjmwdU42jBoJmL++XoHM77+TdPSiJfWx4MH4b5wAYWY8tv4BWJwFJEKxMcCaRVIEAKeeKLwkJqIi+ARJcSKV9W3orAEwF6GP19sIIzCHTbilcwPNVwM+B9qkLJkvLmwvAJMD1cIj6uD7sGSDBAQGX8ADGOeCbwLcwl/BCPT+9TP0Zhz3pJ0gxNsmColrmAAAAAElFTkSuQmCC"}],"scavenger":[{"id":843952,"subject":"one-eyed alien","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA9klEQVR42mNgQAOszCL/QZhYcQxF3+8t+n+t2ARFMS5xrAbMsrT/X2Npi2HAYjOT/8U6TsS5IlwFohAZOyu7E9aM7Fw43hf7/0Gv+f9jbirEh8Gn7X7/YWDHk4T/215UgA3Z5ojHEGyaQYCfTx+M8RqCrBmEQbaCMEwzCMfvSAUbgNUQEOfnlQ64ASDbQJgoA0AMmAQyLjqdDMdBq4tQ5EAGwA1BNgCUBnAZCMIgOZBGUDSjGADjwAwAYVhiQmfDEhNMLdiAblMLuAJQikNPRNjkUAzw1QiCBwrMRc/7bDH8jawGWQ9KToMlW2wYWQ3BTIUNY1MLAMl8XMCKwXvRAAAAAElFTkSuQmCC"},{"id":843944,"subject":"one-eyed alien","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA0UlEQVR42mNgAAJONqn/IMxAJEBRD2L8+XUajIkxBEM9iPiyMPX/7wfNcANgNqBjmNy3s/VgDDdgTVQi2BCYYP2T7f+t9s7/73F+PQpG1gzSg+INmABMM8yZMIxsCIpmZL+BNGdeXY+hGZshGJpBEiDNIBo5kED43///KAagGAJiyCdOQpFENwAW8shqQHrggYhuAChAkQ1A9wJBA0B8kCHIGJsaFANgGFkBIXEMA2CBiQ+jq8cwAN1mdIxhAHrSRZYkJI41o2CYjkeccFYlQhwAuJDAmmPjrFYAAAAASUVORK5CYII="},{"id":843945,"subject":"one-eyed alien","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAyUlEQVR42mNggAJmBo7/IMyABnCJYyh6Vl6M04CXyVH4DQFJ5oup4jQAlxxOhciYKM0wAxrFNcFeAeFTaopgTLTt6BqR8UZFBdyGgCRAij51lIHpotPJ/0GAm0Pqv822UsIugRkAw/Gn88GayTYApAkZw8TFxY3AGCNdoBuADYM0wsInMK7+/+xd9xCGgBjXdLX+4zII5HRv/7L/ubWLUAyISW6DGIIc1yAaGwbJgQyBYZAhGN4glJDQMVHJmeSUSJEB2LIuMVkZAGHfAgjrpxVQAAAAAElFTkSuQmCC"},{"id":843965,"subject":"one-eyed alien","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA2ElEQVR42mNgQAOMDNz/8WEGfACkoG7lbbwYpyEwzf/+/QFjXAa4Ri/AbgiyAfhcgNUAbJp/ro0D469Fhv/vmGuhGIBhCLrffz6M+f/n53UwBml25uIHi5FkwDNHNbBma17J/968EqQZ8PtxCtxmEAaxQQbANOMMB9+MFSiuQMZ4NcMMsDWvRFGIjkEW4E1MIEkJIU28GG9CknBx+R99OhaOE24lgDGyGEgNVv+DFOosDQZLgmhsGCYHUosRCyCTYabDFCNjmBiyOpy5EF0BshjBXIlNET6NAG3xhktiTvSzAAAAAElFTkSuQmCC"},{"id":843975,"subject":"one-eyed alien","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAy0lEQVR42mNgQAIcLBL/QZgBB8ArD5L4/XDy/0+9dlgVweTft5rhN+SSnRZOA277mOB1IYYhyBiXwTi9AnMuMibKdpjG398OgHH9k+3/M6+uJ2wIsuYN72aCNf/5dfq/hKgL2AC8hoAEwLZCDZjybB4YgzRjMwAjpmAGwDBMAy4DMFyBbgCyIdg0oxgA03zSRBqM0RWiY5i6V/lQQ5ANgCWW5yF6GBgkDktIMEPgBiALILORMS41eA1ADiO8anDZhMsAgrkSV2bCJg4AIANrUnqdcFwAAAAASUVORK5CYII="},{"id":843980,"subject":"one-eyed alien","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAoUlEQVR42mNgQAHM/xEYHeCTgyowX3AdjHEZgF8eqsjWezVOAzS9FuHTjM2p2DABzZr5O+FORccmTtPwO1+v79L/lBuvwIrRAcwQHN5g/q8fuhasWX3GfrgmmLPRDcHiEmYUpyJrxmYAmksgoUuxAdgMwRYGMM1YDcDmGmy2ohnAgNUQbBiHZmwpDTcmkBoRCq7q2aNgkpIyPi8wEAeIzwcAqZVgjyEkJnEAAAAASUVORK5CYII="},{"id":1382323,"subject":"winged eyeball","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAtklEQVR42mNgYuT8D8IMJAK4PhABAqQYgqIHxgEBBU7t/8RqRjFg3+XnRLkCWTNID9wAC5sYgoagawbpgasFMWrnHcBpCEwzSB6EdbXcwBhFAcgAkCDMaegYZuvkbdfBGMOlMK8gOxUEnNwSwTRMDsTHGVbommEAphlvmkGPHnTD4KFOKIquPnz73yWgGMMQog1ADzySDECORnTN4ZnzCCd3mCHomCjNyIaANCBjknMrejjgUwsABmZLn3EzHVYAAAAASUVORK5CYII="},{"id":1382333,"subject":"winged eyeball","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA6klEQVR42mNgAAJmRr7/DCQCuB4QAwRIMQRFD4xDrCEY6kHErRffiTIEWfOFJx8QBnRPPkLQEGTNILXNzccRBlTMOAUWgBkCEsOGYTaD1MINgJmOLAgy6OWXn3AM4sPEMTQjOxE5PJANuKCsAzcEhvEG0qfQ6P9X9ezBGKTx2cGLYBpmCE7NIAUgTSBQWrbov4mIMdyQO+ZexBkAUqjGrQzGIANe2zrBbSfaBTDNIK+ADHjdswIsN2/TLfwGwKISrAmIQQbAbH5W0oY99NENAaUJZCeDcPfya4Q1o7sElrhgbJJyLLZUiEstAL8cf2St2hmgAAAAAElFTkSuQmCC"}],"t1_coin":[{"id":601280,"subject":"hexagonal coin","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABPElEQVR42mNgwA7+48BEgf/f7y2C45cnm/5f2Zz9/8DUWKIMAWtaVub2X0NEDgWXBxkTNARFc2uhOxwnuuiDxQoCLP9v63DDagiG5h/vtv5/uDfn/+mZoWAM0gxzCbohYM0gRSAF01rCwXyQc0GaQLbXx5v9n17sAncJyBATOU24IWCbQAp8tOTAms8szcCIAZAF3ek2/+3UVf83hJhiGgByPsgAkGYkA+CuBMmDLMFqAEgDzACQImwGgLwB8gLIAAwvgDSDMEgS5G8QG90LIIOl1dWwuyDSQQuuAGQAiA9KPCCXgAJzQ403WIORly1YDboBYENAzgcFkpqxxf+AxBAwH+Rsh2BDsEaYZnTno6QFmPNACkEaQIbBMCHNcENACkA2gwwCYRAbhkFpgKj8ADIEhEEaYGxCNpOdnQG8ClfsBVDKJwAAAABJRU5ErkJggg=="},{"id":269975,"subject":"coin","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA6UlEQVR42mNgwAKYmYT+Y8MMxACQws+vT6Hgny93/V/kYUHYEJCCdzcm/f9wwBeMv99b9P/LzUowfrU3Bb8hIIlPF9L/f317A46/XYhHwc+XemI3BOzsm11gW2GaQS5B1rw3zApsAciQGktbhCEgBsipyLaD+OiaQRZ8XBMBNgDEd1Z2hxgC8zfMAJAGZANA4iANoHCAGXAs0QS/AcjOh2kGaYRhrC6A2YbNZmTNOF2AHuK4NIPEUVwAC0iQJHqgEaUZZgBIAl0DNs0ozkdPC7gMIagZ3RBkDNKE0+m4DAEpxIZJypHEZmcA40/czh/jLsUAAAAASUVORK5CYII="},{"id":269988,"subject":"coin","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA9klEQVR42mNgwAKYGHn+Y8MMxACQwt+fT4Pxrzez/n+7V/f/y4MJ/59NMidsCEzzt+Ox/6t0Jf+XaiuDaRg+U2yC2xBkzSCNny6kg9nIGCSO1RBkzQHSYmD2vVq1/9eKVOEYZkibiSyqITDNIH9a6qjCNYMMgmGQAdFyInBDzuWo/teT0IEYgmw72IC3y+EGwDSADEDm4zUApgEdk2QALCyQvUCyAcgY3QAQH8WADwfCUGIBnxc+brD/P8NOEWEALCbQDUHHMNv3xCujaoYZADIVm/ORMUhzrDYWA5ANAeGnPboYGGYzVs3ouRCUZLFhonMlKdkZAIC1vMShq+TyAAAAAElFTkSuQmCC"},{"id":269997,"subject":"coin","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABGElEQVR42mNgwA7+48AEAVjh78+nUfCXBxPAmJBB/39/ufb/882u/9sTtLFikBySQZia31yo/n8oywBu85vzuSgYZMjL3UFYDQGbjq753iTb/wcjVbAagmwA2HaQYpAhAaryYJeAsK2oAhjDNMPYIENANMwQsEaQAXDNQEkQGyR+tkwNrhHGfnk49v/lZjOEASA/wVwAUwTC6HycBsD8C7I9UU8aEgZANkghSA6mAeYSDANAgQJzQbapApgPC7x5Vir/H820AtM4DQCFPkgTSBJkwO8PC8GGgRVDDUd2PkgMxEaJCZAhMNNhfkbHMC9tj9LATAewQAJhmEKYgcgYpBnddhRDkA1CxzB5vPkB2SB0THKuJCY7AwBbgdYOqV6ZjgAAAABJRU5ErkJggg=="},{"id":270001,"subject":"coin","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABJUlEQVR42mNgwAo4/2PHRAHO/9+/XIXjLzcrwfjbow5iDOEEK07V0/ifoS0LxhHq6nC8MNIEnyGc/z9dawRrfrU3BYx/PJ/6/2Gv2/8H25LguNpCH5shmJpBikFeeHM+97+LkiqYD1KDxRCIn5E1gzByGIBcAfICzGAQP1gd7h2IASD/gmxDDkDkQATJgTQ2e5ljGgAKYVigwUIchkGKYRgUiGqCOmBXYDUA5ESQV0B+BYm92hWNVTNWA5DDAOQKkGZkA1YH6eA2ACRwpswaxYDn84P+G4logjG6C0DhAGKjxARIAqQIZABIA0gjzDYQG+RCkCaQRZpyVtjTwv3ZzmDNsHiHxT3IUJgcDs0IQ2DRhIyvtTvisxnTEJBCbJikHElsdgYAVmu9yyU7iFQAAAAASUVORK5CYII="},{"id":270008,"subject":"coin","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABA0lEQVR42mNgwAIYGbj+Y8MMxACQwk9PT8Px3Z2zwPjZ6SWEDYFpfrYs7/+VxvD/h9M8/m+OdQbTIByipIXbEJjmlzPjwBhkgIuoIBjDDMBpCLpmEA6QFvv/6+Ou/++W+2EY4qJijjAEXTNIIwh/2p4AN2C+q95/HQEBFIPghiAbALMVGYMMgOGHvW5gg3AaADMEZPvPC5lgTRezrMEugLkCrwuQDYHZik0zhgGgOAYJgjSDog1mAEwzQQMmORiDNcMlgYEF0wTC6Aa0mOlgxkSJoSZYEmQYyAXIGnDGAHpaQDZkSYAFipPxakY2BJTSsGkEGYpXM7IhIIXYMEk5ktjsDAAXhpmcKKcE9AAAAABJRU5ErkJggg=="},{"id":270018,"subject":"coin","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABA0lEQVR42mNgwAJYmAT/Y8MMxACQwh8HC+D4w5HE/5naZv895fUIGwLT/PvLNRT86ULJ/2vFJvgNAUmAbEPR/HAy2MAX6x3+f9zg//92vS1uQ0CC6DbDvADSDMKP53uADcEwAJvTQc4G2748Aox/XauDG4DhChAHpAGkEaQQZCuI/31fLJgNNgToDbwGgF0A9DNIAwiD+CADXrXYgQ0FGXAs0YSAC6CBBgs4kEEgzaAYAPFnOeiCDQhXccJuAAyDAgxGgzQga8bpApAELLRBmkH+hbkEWTPOqIQZAtIIwqCAA9HomrFGI8wAkMkgDeiYoO3ohqDbSJRmdEOwYZJyJLHZGQAy16zUxdXbGgAAAABJRU5ErkJggg=="},{"id":601274,"subject":"hexagonal coin","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA2klEQVR42mNgwAo4/mPHRAGO/2/efQbjOw9fwXF7z3JiDOGAazx68vL/xcu3omBP31x8hnD8B4FHL97DNTdM2odhiK1tBDZDUG2eMXsNWPGlL88xDMBiCG5nH359H6sBIKwgaQEzBGLAhcuoimEAlyEYBsAkQGEA0gQDv78dAPO3HX+J2wCQJnQbQJpAmhcfv/rfyDgYvwuwRRnMEGyaMQxA9z+hQASlByQDIDEBEkRXiO5vEI5OqETXzIDXECI1IwwB+RlkEAiDNMBoIjQjDAEpxIZJypHEZmcARgXtqFvBmIwAAAAASUVORK5CYII="}],"t2_chip":[{"id":276665,"subject":"computer chip","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABHklEQVR42mNgwAKYmXn/gzAuPl4AUvhuu9v/X29m/Ydp/HA66P+zpVaEDQEp+Hav7j/MEBD99UYm3CAYmwGfszena4Pp+vapYHrSzBVwA3aUWvzH6h2QAMjJIFslRBX+Z2RO++/umfw/IqoGjkOCC8ByIFfAXIliAMxmkCJtLYv/v78d+P/nxw4wDQoDkBhIDlktiu0gk0FOhBkA0gTTfLbOCG4AyHaQergrkAMM2QVfjruANaMbAFMH0wN3PshUUFTBDMCGYWGA4g0YB90V2DBMLchVsBjBCERYgoFFI4wGicP8jRKIyAaATEb3I7LLYGwMA9Bd8e1CPFwBLCnjTUgwhTAF++psUAyAiWO1GVtyRg4gZI0k5UhkA/BpBACKhVZIIa6t2gAAAABJRU5ErkJggg=="},{"id":334046,"subject":"data chip","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABOElEQVR42mNgQAJMjNz/icEM2ABIYsn7Z/9TLl1FwfoHL8Oxw9aT/+UTJ2EaAhLY+uU5WNGHA2H/BfhV/3+7l///7Rp3DDZIjbJLC8IQmM22p46DJdE1/LyQCWeDDNdbtx+MZcSNIYaAiGkf7oE1K5XNxItBmkBYfQaaAb+e14FtASkCeQUdw8JDwasXrBHkmvfTHREGgJwMEkQ2YMO7mfDAA7FVO9bBDQB5BcUAmL9hBiBrrr+2GkwjGwALExQv/NrsDzYAOdrqn2yHa0Y2AMMLv05FwL2AbABMIwiDAg5mAMgyFANAAQSKGlhogxRiw6BEBDIAZCBKLIAMAKUyWDQRwhgGIDsdW+pDZoNcCjJAXtoWNTXCnA9LccipD+RfEBuWVuC2o+cHkATIZBiNjmHieHMkqdkZAOjY4CnUSywDAAAAAElFTkSuQmCC"},{"id":334057,"subject":"data chip","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA7klEQVR42mNgQAPz5u//LyKg8h8fGy/ApWni1N3EGMD2nziMQ7OSijEY6+nY4cTSUkqohoCcuWz92f8wA4JD+8FOxYV5eQTBakH6QJgBJgEzAMQG2aLs4vrf70jr/6DVRWA2ugEIfWhegGlefnfp/4+/3/1f9qgdxRCYAXBtIOcjewGkCKTh+IeD/7e9qPifcCvhv9Oa+P/KHsEoBoD0gGIGqxdABjRfzwHj+NP5cANArsPrBVAowyRAmmAY5nxkA7DGArIBIAzSiByAyAaA9GDEAnqUgTQgswl6ASRJDMabGilIyhCAnGlwsalqAADv4jDUV0ZI0wAAAABJRU5ErkJggg=="},{"id":334059,"subject":"data chip","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA70lEQVR42mNgwALYWMX/Y8MMxAKQ4rO3PsE1wthEawbhBStP/8fGJqi59M7H/84LbqFg1eC5YKzuNg2/ISDJ8P33/+uVHYZrQsZyct7YDUAOKPOWC2DF3//++9/w9NL/ifdvwsVgBmB4BxRIMH/CbAdphhkiq5eHYgBILUgPXheANM5/df5/wLS1cANU1CJxRyuyAeqRy8AGgDQjG4DsBRTNyF5wmHIFbEDcgpNgjTCMbMDqzZcIe0Fc2AQFE/QCzCCYASBXwGgYhhmANx2AnIkPE5UaQTg+d8Z/bGyi88OuA/fhmo5eeEl6biQ2OwMACtkt/twvNkwAAAAASUVORK5CYII="},{"id":334060,"subject":"data chip","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABDklEQVR42mNgwAJYmQX/gzAuPkEAUvzz5S64JmQ2QY0w/HKaL5x9v8P+P7IcTs39T56BceW+h/+d0ub/13IrB2NNi6z/jvkbwVhS3gG7ITAD3LuPgzUg2wjCIDEQJmgASJEMj8T/LyWVcPzQyQosJqfpi2kALMC29sb995tzGSwJ0vTvzx8w/VhP+/9sBeX/4cJiYDmQASeWVMDDhQHdmTADYBibASgBCnMByESYASANII0wjG4AyLWwWAIbkKulAOaAQhxEr1JVAGuCYZBmdBckashjhgXIBWpm4f+VOSSwYoKxgBzfsGhDxiDNeA2AKQBhISF9nBhvaoRhWPpHZxOdJ5DzAjzEScmNxGZnABv+KmCUcy0tAAAAAElFTkSuQmCC"},{"id":334061,"subject":"data chip","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAzklEQVR42mNgQALsbGL/icEMuABI8te5YrCin6cT4RpgYjAarwEFjRv+I9PI7Nz2Q7gNAEn4rr7133frS4IYwxCQgF76LrDkiR8/wBjEx4XFlcNRDYEZANMMMgikSNZrJlYDCRoAUwRzMoxP0ACYYpgiOasquJiwRhrpBjgvuAXWqB657L9e2WG4K3AaEL7/PooBWvFb4LaD+DBX4DQAPaBgmmAYrwuQA4kQxjAA2RBiMP7UmDb9PzKNTQxvXoBlot+HwuAGoIvhNYDU7AwA29J7iXhABmUAAAAASUVORK5CYII="},{"id":334074,"subject":"data chip","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA1UlEQVR42mNgwACc//FjgoDz//Xnn8CK12/a+19RzeA/shhBzSAcnzwRTDv45fxnYRZBEcNjCOd//wfX/r/+9QlM48J66/ZjMwRVM0iRasc6nFhMUBfdEE64RhANUvRltsp/Pi5FMP25QwWuWX3GfvwGwDQjGwDCbzMUwJqJNuBZsCTYABCNbABBL2AzgGQvIGOYs2G243UBSAJk+5saNbj/3xRqYohjNUDdOev/lwXmcKcjewOZDVKHxQCIISAJYjDe1EhBUsbMTHOXboZrIjIzkZ6dAcfgaO2AxZgHAAAAAElFTkSuQmCC"},{"id":276688,"subject":"computer chip","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA8ElEQVR42mNgwAAc//FjvIDj/5VbT/43NEz8j84+dubm/+4JC/EZArFBVEwTjPGxsRgCEXw1uev/y+So/48ig8E0DD/Ny4DThUKi6IZAnAcy/aG7y/8fN2/BMUjDCUVFON4mJfc/hV8ErHb7gXMwQzjA/kQ24Fl5MdgVyJrRDYCFDUqowwwAORddMwyDDECLFVQvoDsbmwtAenB6AZdmdANwegGf05ENQPECyDn4XADSBMKrpeX/xwir4I4FUMjPExFHwSBNyGyYAfmFbahpAYSt+HQJ4mABVfypkcykjDAE5DeY89DZqRmVxOVIUrIzAFWwfU7uR15lAAAAAElFTkSuQmCC"}],"t3_star":[{"id":1192171,"subject":"star crystal","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA90lEQVR42mNgwAM4WSX/gzADOQCk8e6XT/+dF9wi3RCQBhDY8PQ12ACt+C2kGYJsgO/qW//VI5cRNgDmXxhGdgHIAH4uFRR5rDbCAEgjTDPMABAGuSZ8/31UF4EYO558gWtC1gxjgzTBDAKFB4iWNWhGNQSkAGQDjAZphIG6O4/BGhQ0y/5LSAf9l1RMxu4NmOnYDIBpBmGcAQqSgIU8yDCQRhAGsWEG4I0NdAOQMUEDYJphIQ/SAPIrCIO95jYNvxdAgrOefgTbDgowWECBsF76LrAhIHG8BnReewMORPRQBrFhaQGvASBbsEYRkjzOfIEzmRJQAwCr1k75/RPTXAAAAABJRU5ErkJggg=="},{"id":1192152,"subject":"star crystal","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA7UlEQVR42mNgwAM4WCX+gzADOQCk8cfrH/9n77pHuiEwzTADQtpPkWYIugE+JbsJGwDzLwivv/Pq//RLT1EMcPGZ/R9ZDU4bYXjug6dgnLnhxv/Fpx//v/TlOdiwjoMvwRhuCDbNMFy2+er/irO3wJpBGKYZhOHhAiJgti15/wwFX3x28//yOS/h2M12MgpGcQVME8hGkLOnTrv6//Plb/9ti/bBMVbN6IEI8u/qE6/Amiv3PUQxADkgccYEyAAQRjbAxH8O2FYhERPiohNmACgQkQ0gOjHBAhZmAEma0Q1ATkQk5weYARTlSEKaAZPgXdWYfcXRAAAAAElFTkSuQmCC"},{"id":1192156,"subject":"star crystal","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABEklEQVR42mNgwAOYGfj/gzADOQCk8eez5//fTphJuiEwza+b+/+fUZD7XycuSZohZBkA8y9MM7oBzlwIeQzDkDXBNMIwzIBJEmL/3zc0wjHcEGTnwvAmMQkwvh4TCw5EkIbLtqZwcRAuFBKFGAIizmppoRiwUlAYjH9//PD/+74lYHmQK3y5+VEwiitATgXh/VJycINAmh+6u/yfLib1X4+NDawpFmgwCGMNB5AtMH+DMMgLIJeANIIMAGkE0VhjBCSIrBmGQRpA/n1qrgP2Oyw2sBoACjCYxhR+EbDNIA0gzSAM8h5eA2AuADkVZADIdhAGsYkyABTaMJuREw0IgwwlaADOEEaSBxmCM1kTyr7Y5AHAIjLo0J+QRAAAAABJRU5ErkJggg=="},{"id":1192158,"subject":"star crystal","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA3ElEQVR42mNgwAHYWET+wzADqQCk6cWbR/9Xv97x335GGoYhf35//U+UAfGn8//rtqejGPD729H/f76v/P/ree9/vJpnH5sANwDdEKyaYf4FaUY3AOQN1axA3GGCrBGGp50v/h99OhZsCAxjcw1WA0pOt/4v25n332ZbKZgv4eaPgrEaALIh614ZHINsAmkGOZ2gATBDkA0A+RtkKFGakQ2B+RNkiHyEOVgTiK8aGUI4UVFsAHp4gAwAhQHWkCdkAAiDDFAuC8MwgKikjGwASUkZ2RB0zXiTMrnZGQABVSNQ16GJzwAAAABJRU5ErkJggg=="},{"id":1192164,"subject":"star crystal","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA90lEQVR42mNgwAPYWST+gzADOQCk8dKX5/9TLl0l3RCYZhCO2nTuv2rwXNIMQTdA1msmYQNg/kXWjGyArEHzf2Q1OG2E+RtGgwzQzN8J9gYMg/hwQ0CM7a8eoxgAwuH778MNqbx6Esy37jvz36jx6H8ZpwlwF8ENASmEYZf5h+CaQZrAXgBiScVkOMbqDZDTQBpgmkF8kE3iMtFgjFMzsiEgAybevwl2BcipMM0gjOJsXAbANCulrQM7G6YZzCfWAFBAwZwOCnWQQTAxggaAQhs5lEEYpBlsEDEGgOIdZACyQhDbIHUBcQaAbMOmCCRGVJ7ApwCbHADoIy9928x9GgAAAABJRU5ErkJggg=="},{"id":1192176,"subject":"star crystal","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABMElEQVR42mNgwAM4WcT/gzADOQCk8dzc+/8L/BaTbghM8/P7n/9fadr939egljRDQIpBmkF4T82J/1EmswkbAPMvDMMMOJ6xHWyAoVQiijyG5oebH4OdvaLgGFhBq+cqsAHra9aCDXCznQzG9gZdYAw3CGzb6Q8oGCYJMmxe0jawAaDAnOG+7f+M8ANgDA8XENEfugEcWDC8ofkqinNBrgO5BIRhYWIo5ovwCszJIIPQwwPkIlA4gFwA8wKKZuRwCLXs+t+cueP/lJIdYAUgTSBbl085B2bj1Awz4NCU02BXgBQ3OEOiLsxzCdh1IP8TNADkf5ABID86qaeAFYKiD2QYSA3IC0QZAPIKTCEIgwwDiYHkCBoAci66ImSX4DUApAjmdKzyQM2wFElW9sUmDwA2DkEFvT0s3wAAAABJRU5ErkJggg=="},{"id":1192178,"subject":"star crystal","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAvElEQVR42mNgwAOYGfn+gzADOQCk8eflK/8v6hiQZwhFBsA0v4n0+r9aWv6/N68EaYaQbQAs0L61TYM7H2QASAzmFawGwSRAmmAYZPs2KTmw+NdFS8AGgTBMDG4QiPG+oRGMP6dnwPFFOXm45vsaKmBvwHCUsCyqt2AmgjDMFpgCkGaY7XY8Cv+R1eIMB5gNIM0wQ1NF5IiPCXBArt/9/42+GdgwmM0kRSPIgOfqqmADyE6JMBcMUQOIzc4AsinBG0NSBtgAAAAASUVORK5CYII="},{"id":1192197,"subject":"star crystal","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABCklEQVR42mNgwAM42CT/gzADOQCkEQTmvzpPuiEwzTADshffIM0QsgyA+ReEQZrQDQjzXPIfWQ1OG0Hg5rsF/7MPHYQb4Fd5Bsw++PotmI8SLuiaYeDUy5n/ozad+99z6dL/P7+//j/wfs3/sBNH/gctevw/YjLCRWADQIpBGKQIRIdu2fY/MnTr/597n/zv3nj3v9+cy//D998HuwQk7mY7GdUbIA7InzAM0wwycEr1pf9OqUf+25pX/q+M3ADGWAMUFjggzXUrb/9/8WUt2MkFxSfANsJsJSo2Ks7eAtsOCgOQgccztiP8TGw6AIU0sgEkJySKDIAZErfgJO5AI8YAUFiQbQCx2RkARVBGOELhxUgAAAAASUVORK5CYII="}],"t4_crystal":[{"id":960727,"subject":"power crystal","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA/klEQVR42mNgwAPYWIX/gzADMeDfvz///3xf+R9ZM0js98PJxBkC0gwzAKYZxP+4wf7/x2NRxLsE2YBfd1LBBryf7ojbALBNnzdjOB1kO8yAe6lquA0BO/1iLIrTsRmA1xBk28EGAl0Eol9PMQDT3w4Z/P9y3AVsGEEDQLa+WWoExiCXvLlQ/X+3uzYcEzQAZBPIZpBBoCgEaTrmpgK2HWYAerhhGAIzAOR0kKYnTVoozgd5C2QRTgNAimEBiM2ALyWV/z/3pv/H6w1kFxAMPGyGgGwFhQE4JSIZAPL/x9yu/0QZAjMAWTM4eQOTNlEGoNv+8/oUSHogxgBiszMAfFVKgSwqPnQAAAAASUVORK5CYII="},{"id":960733,"subject":"power crystal","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA+UlEQVR42mNgwAGYmQT+I2MGUgBIw8/7j8D4x7XH/28GlhBvCEjhnw9fwRik+cvCjf9f96z432KTTdgQZM3oBjyPa/8/zaQAtyG4NIPwncoF/28n1YMxVpeABEAa8BkACgechsAMQMbPcyfDDQBhkEaQN0AYqwHoir8duAa3EWR7kpovGOfKR4FprN4A2QpyLgiDbOoKagDjOI0CsK0gDDIAb0Aiu2K5W87/S5HT/tcY1P1f7tdCOCphBoCcD4o6kNNfr98P1gzCFeq5xKUFUCCCDAC5AmQAyEsgA0hKjWBDgJpB4UKSZnQDSLYdPTxABpCsGT1L41MDAId2Y7CT3ZvLAAAAAElFTkSuQmCC"},{"id":960735,"subject":"power crystal","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA7klEQVR42mNgwANYWUX+gzADOQCk8cevJ/+X311KuiEwzatf7/gffzr/v1yLNfGGgBROeTbv/53Px/877ov4H78jFWyA74Ek4gyB2Q6y2XaPN9gLIAN0lgYTNgCkAORskAE220rBGGYACKtO9cBvCEiy/u7E/8setYMNef3jNthmASUTMJbztiFsQMnpVrBtIENAmkFsmGaiDICFOigAwZpABuhZQLxBigHmGwPhBoBoEJ/oWAB5A+x8mAFQA0kyABTiQjamYM2g6CQpNcK8IpluRlz04TIEZDMoMMnKUCBNIJtBLsjWbCQ/RxKyHQCaX9TUO5KzygAAAABJRU5ErkJggg=="},{"id":960737,"subject":"power crystal","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA7ElEQVR42mNgwAN4WCX/gzADqeBs4Ruwxuf3P/+fEX6AdENgmh9ufvx/XtI2sAEgQ0my/f3nX2AD+kM3gDFRhiBrBuHXPSv+R5nMBhtgb9BF2BBkzWAXTD8MNgCEQQbADMFrO8jZIHylaff/UMuu/+fm3gdjUFjoSIbhdgXMgD01J/5XRm4Aa86xnvv/+ekPcC+I8RnhjxGYASCNIGffPfAebDNIs5KYH+EwgLliV9Y1sAGgQMww6/xvIp9NnAEwV4BcAAoHEA3yt5daCfFpATkwyTIA2ZAZ7ttI14zsFeSoIytDgQKPLNtJyc4Ay2gNs/5HIQoAAAAASUVORK5CYII="},{"id":960751,"subject":"power crystal","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA4ElEQVR42mNgwANYmPn/gzADOQCk8fe3J/8/rokg3RBkzc/Dlf5XKYgTbwhMM8yABz5q/xvlBEk34OuJ+WADYK5YqCVK2BBk20EGfDtRBtYMckWfpgQY4zUEJPnr6cH/329uARsA0vw2Q+H/HTeR/9/7TP5/rNAibADY2UCFIE1fX12D40he4f+5EkLEGQDS/G6++//LAdJgvx+1kwQbQDA2YAaA/AwyAOQSkK0kxQRIEUgzyFaQASBbyYpKmO0wg0hKjSDFIFtBBlyyFSHdAGRDyNKMHKC7rKQpy5GENAMAzybhhxgK9UgAAAAASUVORK5CYII="},{"id":960768,"subject":"power crystal","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAxUlEQVR42mNgwAM4WIX/gzADOQCk8feX+/9/nZxGuiEwze/mu///VGdAvgEP4sXABpw0kSbeELjTjzb8f5aqCjdgkaoSYUNgmpGdDzMgRljlf7+SIn5DkA34vrfy/9cFYf9/vj0FNuRbs93/K/ZyhA0AOfuBj9r/H5Pd4S4JllCAY6K8ATIAZBvIVpAmEJug7cgGgGyFGRAnLk68ZmRDQP4H+Z1sA36ujQMbAAp9kg2AGUJyIsJmAFm2I0dplYI4ZTmSkGYAeTLI7eT71mYAAAAASUVORK5CYII="},{"id":750806,"subject":"mana crystal","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABA0lEQVR42mNgwANYmfn/gzADOQCk8cvTD/+flReTbgiy5jMKcv+zpKWJNwSm+XXPiv9PArwpMwCkGYQLhUTBmKAhIAVfp28Ea0Y3oE5ckrAhIMk72ZH/d0lIgPH7hsb/ryZ3wfm6vDLEuQJk68vkqP9+gnL/rXklwWFAlGaYATekZcAuATkbZEC3rNR/U2450gwAuQDkZxCbaANgKQ+E0Q0AicmIieE2BCSxZNkaOAbxQV4AGQBiG2lqwjGGISCBiZ3d/4sSY8G4trYRrBCkGRR4IHZwcAwYY3UFugHBHi5wm0DYxsoRrBGGsXoDJGhmbALHmoqKYI0wPl7N2AIRF0bXAwD6l/AG48x+IgAAAABJRU5ErkJggg=="},{"id":750819,"subject":"mana crystal","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAuUlEQVR42mNgwAOYmQT+gzADOQCk8ef9R/93WRmSbghM86vJXf+3Kyv8jxFWId4QmOZvq9b/v6arBTagT0yGeENgBjwJ8AYbcERelXgDYJphBpQKyqEYkCGtht8QkCTI3zC/e/Eq/dflVkTBBA0AORuEq8UhgQfSBLIZhEkyAKRhkawc2BUkxQRIEcz5IBpk0DNLM9IMACmGGQDTTHJaAMUCsgEkpUaYAe8bGkm3HT1AydJMFQOIzc4Aqt+4p6N2le0AAAAASUVORK5CYII="}],"t5_idol":[{"id":1119116,"subject":"skull idol","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA7ElEQVR42mNgwAs4/kMw0QBZMcf/n0+W//+4wf4/ujhOzT8OFoAV2wuLgulf54r/f93ggSJ2KV8Xl6sgBtyoM/jvozYXyPb4/6yk7f9lW1OwISAxkObtURq4Dfi+L/a/35zLYKeDNF1xcvyfLu4B9gYIB5qfxG8AyHaQs2F+R8cEXSDAo0gUxmmAnoXS/4DEEDCOK0oC05bOJihYSF4EtwEgDYi454BrQhfDaQA2xSQZIK8l9d/ZzwmsCESjGwTCIDV4ExPMIGSbUTUSTNoIA2AuIcJmzNgA0aAQh7FJMgCkERsmIWdy/MeOMQEAAYv7Fqij6CkAAAAASUVORK5CYII="},{"id":639703,"subject":"idol statuette","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABB0lEQVR42mNgwAGYmfj/I2MGUgBIw9/vd8D41/Pe/8+XehJvCEzznx87/r/b7vb/bKrOf38xvv/XilQJGwLT/OvNrP/PllqB2d8flIMN+HDA93+HjTx+Q+AGAJ090Urs/8djUXAXEG3A78+nwbZHKQmgYJB3iDLg641MuCtAmv78fgkWI9qA389zwP6GxQJIM8j5oEAkygCQTSANMM0gfKPOABwWBA2AGQLSAApAEAaxQThNVYS4tABLeSAnw3CpvgxxKRIWjSAvWPNKYuBnU5yJjwVYTID4oGgF4cXuRATinnhlsE0gp4PYoAQFCjxQGIBcQZQ3QIEHiwVQAMIMIClDYcPY1AIANrQyXTDe16oAAAAASUVORK5CYII="},{"id":639705,"subject":"idol statuette","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABBklEQVR42mNgwAGYGLn/I2MGUgBIw5enc8D4+8s1/2+1WRFvCEwzDIDYb0+U/T+UZUDYEGyawQYscwIbsDhUHb8hyAbANQNtJ8mA63P94JphtsMMmOwqj9sAkMTmdO3/pkJi/1dFqWPFIDl7YVHshoAEP11r/P/9wzmwQmwY5AWc3gAJlplI/L+/OPD/7y/3wc5/sC0JjA+WWYA1wgzCacC3s91gf6bpQgwCGQjCoHABOR0kjtcFIM0gmy9O9gYrhtnuqygOFgPJ43UBSCFIQ4SaMNgFIA0gMZALQGIgzR02BGICpAikERcmmA5gNuHCBA0A2QJKfaAABTkd2XacaQBfNiaUrQETYUCrZIHkagAAAABJRU5ErkJggg=="},{"id":639708,"subject":"idol statuette","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABN0lEQVR42mNgwApY/mPHRAGW/y8OdP8/PT3l/7UlBWC8I9Phf46NGjGGsIAV11qqgTGIDcJm6vJgnKSjhM8Qlv/3tlf/P1zjCsbnmt3AmhyM1OBiIMNytRRwGcICVqQhyA/HMI3IYjgMgNhuKSv0f8u74//dLqb/F/HT+r8gWu//NA8tFDGQISDvoRkCsR1kgOO+iP+S6Wb/+VUkwd4AGQATEwB6B2QAyGsYBoBCGd25MAPQvQCisXoDFvKgKAQ5H6YJJL463gifZoQhIAUgzbAAhGGiNIMCclpLOIqTkTHIFXjSAgtYAQiDbDzVFwH2TmmmJ9hFKbFe4DRBlBdAzoVhkCYYJqAZYgDIC6D0D7IV5AqQC0AxMcFBAxzNBA0AaQRhkFdANCgGQJpBLnBzNiIuQ+HHqAAA4I4tpXloEloAAAAASUVORK5CYII="},{"id":1119075,"subject":"skull idol","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABP0lEQVR42mNgQAIsTAL/QZgBB8ArD5L4fPkbQQOuvPmKqQYk8OHj1/+V+x4SNODg67f/p1RfQqgDMUCg7vRrFM0w56I7G2ZIcyXUMpgBndfeoGiAAZC3zs29/1/XvQkuh2EASBHIgILiE/819SLgGkEY5DK/yjP/5eS8//NzqcBdCzMQbMDyOS//R1cdgGsGAVBggRSCDAZpBLkC5lKQgSb+c1DDAWQiCBx99PL/u5c/wJqRDQDJR0y+AcaGltnYYwJkC0gxSBNIM4gNwqDYkZCwBWOQV7DGFEjQwrMTrOHugff/k9L2wg0AGQYyBOQKkBqstoMALI5BmmBsEIalEZwGwAy5seoDWGN47gYwDQsHkEa8mtGTM8x2UFggxz9ezTADQAkEpBkUpSAaHt/EAFiegMWCa/QC4jUTygO4AACa5HtAHAOjHwAAAABJRU5ErkJggg=="},{"id":1119078,"subject":"skull idol","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA80lEQVR42mNgwANYmQT/gzADKQCmCYR/v13+/1ab1X9kMaIMeLU3Baz45+WI/9scVcDss6k6xBsAsvndfPf/z9Jl/u/RUwS7IlhCgXgDXk8xABvyabvf/2vFJmBX9OuTYIAshyhWTNAAmPOR8eebXWCXgMKgVgOPK5A1gzRgwyDvYPUKsuZVepJwDNMI0gTCM/VUwQEKolEMgRkACnVkP8MMQBbDaQA2xaDQB2FksYN++tgNAEmg+xndJSA1IGwpoYU9HEC2gfz+rM0EwzBQLIA0YtWMng9A/oTZDAp5EBuWlIlKC7D0DwsDEJuklIgPo6sHADWwNJJ4CwSIAAAAAElFTkSuQmCC"},{"id":1119080,"subject":"skull idol","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA40lEQVR42mNgwALYWEX/Y8MMxACQwpRLV//7P7iGgtNnzSNsCEjBz2+fwfj7h3P/f52KgOOnuTr/W9VscBuCrBlZIwx/n2b9/1W5/v8KNT9MQ2Ca0W3FZsAlOy1UQ2B+xqURhH9eyPx/2koJrBmGlcSghiAbgB7qMAPQxTEMCDtxBKtCkJNBmPYGgARAgYTud5gGkBzM77d9TP6rqEUiDIAFJHIAgTSAMLJLQIEI0gTDWKMShEGmwwyAYVj0wTTiTUwwA2BO/95ngulvfEkZZABIMbK3iDYA2RAQjexfojSTk50BUHd9CMv/WjEAAAAASUVORK5CYII="},{"id":1119088,"subject":"skull idol","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABOUlEQVR42mNgwArY/2PHRAH2/76tef9TmivB2Kku8r+ipdp/cUUVYgyBaP7xbuv/Pz8v/f/9oPn/76fz/l+f6/c/2U+LkCEQzb8/n/7/9kju/683MsEGPd4UAXYByJAuPw1chqBqts/x+f9gufP/X897wQbAvAEyJMpEAZsh7P/Ng8z/fztbD9YMwyDNG7KMwJphGMTHaoCRl+1/ZWcjeIiDFINcBRLnFRWHi4M04zQAPdpAYiCD0MWxGgByLsjZMEUg20E0yHZkQ0o8DbEb0B9tCDYEpBEUaMjeAbGNEj3AGGRYkqk89piABdS1fkcMTTC/E0wLICeD/M7NzQ02BETDvIAITDwpEWQDSBNyoMH4RCRn9v9lzkrgcAApBgUqMo3D75iGgBQeabUHJ2dQ4FooSRCrmfTsDAAnryEdHI19VgAAAABJRU5ErkJggg=="}],"door":[{"id":1331450,"subject":"vault door","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA30lEQVR42mNgQAHs/4nDWAH7/w1HLqNgWVWH/4evPfyfVr8aRRyLIez/8xq6wYqjC0vhWIhf4f/EDTv+K1t7g+VhWEPWCN0Q9v/mDi7/p26YD9ZElgHykkr/szNzCBoAEsdpQG5mElYDQGHhFlqN3wCYIehhcOfEgv+tm9rBbLwGgBRUTNuCYcDGMmewARzsInBx+hsA8hpBA0ASR29cxGoAiAbFEF4DQIL5xfUYsQAywMgxCBwTBL2AzYDtzWFgA5BdhtMANwNNrF4gwgCEN5AxyIB4FWMMcbw5ktTsDACaWX+Ril42+gAAAABJRU5ErkJggg=="},{"id":1331413,"subject":"vault door","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAtElEQVR42mNgQAX/icRYwX8720AUrKVujxXjMuR/Q8fy/3NXHoJjXm5RDLG88n6sBoAFYYriM2vAGGQAiEYWA2FsrgArkhRXId+AafP2gA1AVggyICI2jzgDQAqxGUC0C0AYWRHMgN8fFv7Xlpf6v2T7NfIM+LXPFkyDQp8sA95XWYFpkCayAtHROQicFoiORnQDTCxdiTMAXywQYwADrjBAFwPlEZx5AT3TwAKP2MxEVnYGAGySemSB3DeHAAAAAElFTkSuQmCC"},{"id":1331415,"subject":"vault door","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABQklEQVR42mNgQAJMjDz/icEM2ABIwrH2yH+/OZfhOKT9FFjs7PvvcLzy5RdMQ0ACcQtO/pfWikSxySJzNVhT2vbnKLjz2htUQ0C2aQVOwarZvHo3ClZ2afmvYlr0f8cTqEtABMgAESknuGbjmGlYNcMMEBGzAOvBaQDINSCnwjSBNGRuuPG/bPNVuAFRGx4hDAAFFLoLYAaAFIMCExY+IINAYvAYARFghUgGvJ5iADYAZjNIDGYjshjcAFCAIRvwfZ79/4ITr+CKQbYvv/YEoo4YAw4XGmG4QNYoDkybhTSA2SixgG4ALBBBASbAr/rfMX8jmF8I9AaIDzLYd/UtwgaAwgYU5yBNMAzioxgAS4lgCaghIJuRoxEkB8KwRASLBYzkDPIbCKOnA5ghIDkQjTdDwTAobcBshmnCmxvxGYZPEwDmFZluFsPzdAAAAABJRU5ErkJggg=="},{"id":1331425,"subject":"vault door","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABFUlEQVR42o2TPUvDUBSGg1YQhA4dMgh2sGCGZg0omEGkOEhbEISULg4SJxHdRFyy+BNcOvWPHnkuvCFpbm698JKec895cj7SKOoe26PgsaJ4tsfVh62fPq1839hX9dtSCGJ5PrM4Pg+KF/gglqRXdnI87LytaQviq6ROTi6mrvxdQJZdOxvAy9uPH/D6vXUBBDcBSh4fDcIAZtBsA7+SEYm9AC5I5lKA+8XSBY4OD5zNVoi7m5f+CjTlZtmqAp8qYM0dAFsQgAT61XdxNkkdgN99q2xtgZLVJ8Hc8dwLYAsapgDV5anrnb4F8LZA4s3tQz1IATQ02uKJTVzvFpi8JD/JVIWvD1BDJAYnHwOWsIN/qH+qPn+z8UM75iDDlQAAAABJRU5ErkJggg=="},{"id":1331427,"subject":"vault door","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA50lEQVR42mNggAImRt7/pGAGZAASmH39w3+bkgVEY7ghIEbntTdgQSlpS6KxoUc+xBAQAdLMzSEFFgQZBjMQGwZpDmjeB6bhBoA4lfse/lczC0fRDPMvugFxC06iGiCn6Qs2AES71m2CawYZCBJDNgSrC2AaQF6AsZ3S5v8v3PAIjJ2SJqEYAnM1igGwgIEp8C5ZCo4ZkAGwAEOWJ2gAjA0yCKaYJAOQowwUQ3i9gByI6DGAHhMgNRixAItGZANwRaOsqjtmLGBzAb6EhOECmG0gA0DhQAijhAEsP4A0k5IXsOZIcrIzALmvpNARGfxXAAAAAElFTkSuQmCC"},{"id":1331428,"subject":"vault door","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAu0lEQVR42mNgQAX/icRYwf/QkIz/E6fuxot9fBKxGgIWVFM2+R+fWoGBUzKa/tvZBoIxSA02l4BNBynQ1bMGawLZBKJhGmGaYa7EMAAkAVIAwiDFID6yZhDm5hAGWwCSw2qAnIw63ABsGGQASA1WA0AaQQpANMiJuAyCqcEwAISRbQCxcRmAMxYoMgAWCzAnYjMAZjjOWIAFIj7b6RML2DSDEhayGpyxAEtMuDBSIGIGJEiSGIw3R5KanQFmqUT/WQlTigAAAABJRU5ErkJggg=="},{"id":1331446,"subject":"vault door","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA0UlEQVR42mNgQID/JGIU8L+ise+/na03VuzkGYqCdbXNUAwBaxYRkvu//9TN/0t2HySI+XmEwRhmCNgWkAEgydT8OrwYpLG9f85/M1Mn/Aag+xnZAJCLkb0BNgAkATMAJDZ36eb/+cX1YD6IhhlC0AAQH+REEI3s1/r2qSiGYIQBsgGRCZlwPowNcxleA9AVgTSrKuuQZwC6F2ChTtAAmGaQ7TA+iI0eiBjRiGwA2dGInmhAaQOE0RMSTheABInB6GEANgTkJJgEMRhrjiQnOwMA4ZiN0aMtTd8AAAAASUVORK5CYII="},{"id":1331459,"subject":"vault door","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABGElEQVR42mNggAP2/6RhFMD+v71nORgbGdmCsZW1BxhrqhtjYB4uAXRDIAaAJBYvPQrH0+btwcAgw7EaEBpZBDegumn6/yD/FLAYiIZhcRE5sCEpGU2YBoAUgJwHMgCmAd0AkDyMxmoAyBu5hVP+/3q9EYy/7wuA468bPOCuwOoFmMkgA0AaLuXrwkMcxN4TrwxXg9UAWOCA/A8yACQGsxnEJtmAn/dmwl3wbr77/7lOsoQNAEnCDKgylQZrBLkgWk6EOAOQXQDyd5qqCBivD1QBGwCKFYIGgAIRpAgW2iAalCJB8iB235TN2NMBSBJkA3rcgwwEYVgU4kwHCvJqYAxLhdgMcHUJxZ0OYH7DlYFgGKcB5GEGBgAo9YLlCH+pMwAAAABJRU5ErkJggg=="}],"exit":[{"id":1263424,"subject":"teleporter pad","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAhUlEQVR42mNgwAOYmfj+gzADOQCkMfPq+v8e59eTZwhIk5NbIhgTZQA25xIrhuFcfBirt5CdKy6mCmejY2Q5rK5AVgCyBRkjG4I1TJANQNaAbCD9DCDZCyABkCJQCOMLRFllI7g6vLGAD2ONBZjzYc7Dh5HV4U2JyN5CFyc6aZOUF8jNzgCBSvLra6Lw7wAAAABJRU5ErkJggg=="},{"id":1263385,"subject":"teleporter pad","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABCklEQVR42mNgQAEc/4nDWAHH/////6Hgx28+YeDNxx5iM4QDq6aZK8+DMboh+y7eQzaEAyyIzUZ7fs7/KoLiWF2CZAh2AySF1f7//HD0/+9TQWA2UQacu/sKrBiGkQ2A4WU7z2IaANIIs/XHy0VgjTDNyPhVuT7cNVgNgBnyZYE5Xs14DYAZgk8zhgEgDkgQ5j+Q4vfd+nB/E20AzJBjvlIoGkDsywHSuA2IK1sJFyyy0PmvLq2F1VvImn3TpiMMMDIO/l/QuOF/dFzxf0N+LjAGsZFdBmLDcHjmvP8aGi6oqREkYCKnCdYM4oNoL69osGJ0jKYZkR9kOdjAGJbrQGyQYnSMN0eSmp0BQAJLlEKIJfIAAAAASUVORK5CYII="},{"id":1263399,"subject":"teleporter pad","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABF0lEQVR42mNgoCH4j4ZJ06xnHoCCiTXkP0wzP680CtbUdSHoGrhtIA0yWsn/5W3ngbGEhC1YDJ9rUGyVNev/73Ph1f8l75/9T7nx6r+m16L/4lKecHl0Q/5be8T+z+vaimIASCMIgAzx3foSLAaTT66ei2LIf3fftP9NwU7/43NnIPwMtBWkEYRB3oCJB8bV/4/UkPuvJcCDMAAUQCBcEGAJNh3ZJciaQRaAbAZpBvHhBogKqYMN8BDjARuSVr8aIxZAmkHyMM0oBsAEQAqspSXBYQLyEsggUNiAaHTNyAbA4x8kCDYAiEEusnX0B9sMYuPTjBKdMAUgQ0D+BWnGovE/wdQIS30gDAojfLbiNIgYJ5OSI7ECAN1a/ogD8msFAAAAAElFTkSuQmCC"},{"id":1263402,"subject":"teleporter pad","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAm0lEQVR42mNgGKzgPw5MnEajxqNYMSGD/scfewNXzM2liILNWy6gG4Rfc+Ond2Dsu/UlGIPEsLgGohlZAqYZphEZ4zIEwwBkTSCXgWiHKVeIM0DOqgqsUD1yGQoGiYHksBogq5eH1RBkjK4GxIcbgEsByCAYRpcD6UEJSJgh6AZhMxRdM4ohyAahY5g83sSEbBA6JjlJk5MXSAYAc48vd+sgqy8AAAAASUVORK5CYII="},{"id":1263404,"subject":"teleporter pad","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA4ElEQVR42mNgGL6AkYHnPzImWbOcz9L/sl4z/8s4TQDTRBkCs8285cJ/8767/x2mXIFjmCFYDYJJIGsQEtBCwSADQQaDXIRiEExj0vv3YAxSCNPQ+OkdGIM0gsT0yg6DMdh7Bs0QQ0CE84JbGAaAnAy2FYhBtiIbAOJLKiYjDAAJgCRgfocZguIFoJxe+i6wzRLSQWAxuAHKLi1wDFIE8hLMIBiGaUY2FCUcZC1z4FgrfgtYE8xbINfh1IweEzBDQDaCvQQNeWSNeNMEsiGwRITTVnyGiAlao2CykjMxeQEA3LgDjsLNdC0AAAAASUVORK5CYII="},{"id":1263425,"subject":"teleporter pad","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABLElEQVR42mNgwAM42EX+gzADOQCkceuX52BMlCEw21w8isCYn0f+v2fn5P+2p47Dxd09k/9jdRUu29AVI6tjZOD6j2KA6ew5/30uvMLrXJAczFUoBoAAyMkwp4IkQRjEh7FBGOYFkFoM00EKpCX0wRhkCIiGORdZDIQxbAcJFDRu+O8eXw23GWQLzFsgTbDwAKnJrV2EMATEaJu+DWwDSAHIfzA/wmxEFgexzb3TwBaCDQERIAF0A2CKsYmB1IL0wA3Q1XIDuwKEYZqQMcg7sECGqQPpQfGGmlk42H8wBbgwyGYlXXfUgIT5FySh6xr7P65s5f9pH+6B8Zyvn8E0yM8gOZAajJgAcWDOBEmCXGPbvw0Fg8RAcjB1WKMShmGhj46R1eDNWMgKCWkCAPK1QSIQYGq3AAAAAElFTkSuQmCC"},{"id":951904,"subject":"portal swirl marker","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA7UlEQVR42mNgwAK4OWT/Y8MMhABMocf59f9Nj68GYxAbhF0OrMBvEEhi/qvz//W3z/uPywUgQ2DyGJr73p7CqxmGVQrqwRjFEBAH5FxkhSADYd6AeQXZELgBIEb9k+0omrF5Bd0Q+cRJEENgfkO3Gd3p0nGVKOIoBiBLgFwDUgwzDIRhBiBbBFOD4QKQYTBJkDjMcLwuQDYAFEDYYgOkBhZ4GC4waOrGiCpY6IMMA2FkzSgGwKNx9hys8Y0c7xjOR04HYD+iGYINgzTLaCVjT43S7hVw07FhkDxWzeiZCeQakGIUDPUzSbmSmOwMAGheW7bI7RsIAAAAAElFTkSuQmCC"},{"id":951921,"subject":"portal swirl marker","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA6ElEQVR42mNgwApY/2PHRAHW/651m/57lyzFwEQYAtFs4dn5X0s9CAXbhc8AYzyGQDRrWmSBNXBxyKBgkJiZWy0ul7CCTcem+fiHgyiGgNSZ+M9BNwRiALrmf//+/P/97QCGS9AMYAU7DZtmmAFXP27EMAQUTlBDUA3wdaoEa4LhXzfL/v9+0AzGIDmcrkB3wau9Kf//fN4M1rgyrYKQNyCGyMi4Yhjy++FkjBiRFrPAFZ2YLnEzzMaiEW+CYoUnHmQDYJo9lTv+E5WcQRpA6UKAVwOfk/EbAjOADM2IQAVhMg1Azta4AQAzmgtuPzDvTgAAAABJRU5ErkJggg=="}],"xmark":[{"id":1303645,"subject":"treasure x mark","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAABK0lEQVR42mNggAJWZrH/MMyAA+BUAxL4/eXa/9/fjv7/dtwXqyFwNUCMogZZ8+VUtf/f7tX9f7bUCsUQmJpfd1LBakDytRoKEDUg4vuDcrAkzBAQ+918d7hzQeIgsfNRmmDNGAaABEAKQPjP583/N3hpgtkwl4DYj2oM4JpRDIA5EST4do072DU/Xi76P89KBazxy80wuCaQfKu2DKpm9BB+P90RbADMEGQDYBrxxRTYIJgBIM0gTTAD8GqEhzYwwECaQVGFbDNBQ2BRBYsRmJ9hNF5DYDaD0gBMM8xmEAYZgNMQ5EQCwjBbkQMMFPIgcZzpAKb5Tq4uWCGIRk+JsHQAcwXIULgBr8r1UeIaPZ5BbJhGkPyDKA2EAcgKQIIoEmjhBJPHm5BIzc4A7uKz32I8G9IAAAAASUVORK5CYII="},{"id":1303659,"subject":"treasure x mark","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA6UlEQVR42mNggAPO/wiMC+BUw/n/24rpcIzdEM7/Hysz/89WUP5vzSuJrobz/20nHTAGGdAhKoHFEM7/V5wc/y+WlMBuwFZ5SbghbyK9/lcLiSEpQmjGaUC8gBTckN1ysmA6UET8P7pmkMFYDIAYAtIAMuSUmiLcICI1oxoCUgwzAGQgCBOhGWGIM68YWDPMAFCgGnJJEKMZYsBDdxewRmQDiLYd5GeYs0EakTFB/8M0g2yG+RmEQZonSYiBMc4YgDkbM8A4wWyYAVgMwW4zqi14DeEk0p+ohmC4AuZfQrkRjzpOIuMZVR0A524GvZT+u4cAAAAASUVORK5CYII="},{"id":1303670,"subject":"treasure x mark","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA7klEQVR42mNgQAJMDDz/QZgBB8ArD5L4dG87GGNTBJO/sbUduyEgwRfrHf7/enfg/4t9jSiKYJofzbT6n6wlhduAIn0xsCEgxSAa5mSYZpA8Pi+CDQHZ8KzN5P+HA77/71SbEq8Z2ZAoFfH/lzMNwIZ8X+FEvGb08AC5AIRJMgCk8MOBMLBGkHdAeH+q1v9VUeqEDYFpft5nC/YGLBBBhoAMmOmvjD8dwGyGaYaJ24oqgMVABrQ6y2AaAhIAhTTIZpB/TYXEMNIByBAQBhmAbAFK9GHTjG4ITB6rK3BpJkaeOgZ0uurjNQCfPNnZGQA+990f+sGbnQAAAABJRU5ErkJggg=="},{"id":1303681,"subject":"treasure x mark","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA1klEQVR42mNgQAJMjHz/QZgBD8CpBiT46243GOMyBKcaEOd1vf7/79Os/3+7XIHVEJhmkJobIeqYBoAEQZLYDEHXXKoug2kASBDZEGSn4tVMjCEwPk7N+AyB4QY1MYIxhGLIeTcZFAMOuMiSZsCDKA2wS5Bd06cpQbwXYAGG7iWchoAEQf6E2QwLMGzhghEeyJpBGGRLqIwYSjrAaQi65pn6Uv+TZeRQbACxQWIgOZghcK/ADABJrjaXxBnXIDGQGhhGCQsQA+RkZGfjCmSc6mABRmp2BgAISzrheZ0FGQAAAABJRU5ErkJggg=="},{"id":1400967,"subject":"x mark","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAtElEQVR42mNgQAJsLIL/QZgBB8ArD5I4cvQWGGNThFceJPDpxx843rvrOooimGaYPIoh6JLohmCTB/HtbBKIM8TCJAhDM0gMIzxwGYLLZqyBic8QgprxGUKR5nc3X8OjDyXgiLUZHTt7ZGBPB9g0gxTLSRlgGEIwCkH8oIBKuJ9BBuE0BFsqi4vuQAkwbIagGFDTsA4uAWJjC20QH6QJJA/CGN4ACcAwrujCpg4jqxKbpWFqAIm33CEEOcx7AAAAAElFTkSuQmCC"},{"id":1400977,"subject":"x mark","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAl0lEQVR42mNgAAJOFvH/MMxAAGCoBTGcF9yCY3yGIKtV0CyDqAURGlmHCBoC06xdfxmsGW4ATBKfISC2ed9dsBoMzciKsBlClGZ8hoAwUZpxGUKSZnRDYJgkzRQbgK5ZSjUPjon2PwzDYgGkGeQKvIZg04wsh9cQfJqR1cBiA8UQYjSjuwQlTJANIDY3wryD4gpS4hlZPQABjP6fiNbX4AAAAABJRU5ErkJggg=="},{"id":1400984,"subject":"x mark","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAr0lEQVR42mNggAPO/wiMC+BUw/k/XUQcjAkZ4CcoB8ZI6iCaXyZHwTF2QzjBck/zMv6vlpBENgTTAExDOOHiIM0gbCOghjAAhEGCyAaA+DA5dM3IcihOXCwpgaEYXSNCM45AQleMjCN5hQkEMtQQkEJ0zWghj98AXC4gynZ8XiDZ/77c/GCnEzAEEY3YFeKXgydP/LZgGoKSkNANwJWUcRgAkQQJoAliDSc86sjLzgBtSBTpBSFXRgAAAABJRU5ErkJggg=="},{"id":1400994,"subject":"x mark","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAs0lEQVR42mNggAPu/xBMLEBRz/3/2/olYEzYEIjGOVJyqAa8ifQiwhDu/1dVVf+vlpZHV4Mw4HN6BpiNaQhEMwjjsID7/0MnK7BmEEZViNCcJyaDz5sIhci2EakZtyEkaMbvEqI1gwISmyuIcv6XkkoUZ4MwjH9QXo6QIdgCjBtuCAEDuP8/CfDGEWAEDYGkAZAk7tCGGIJDDTdS8sTnR254uKDkAyxpm2BmQjKE1GyMahAA+Lfc5lEfirQAAAAASUVORK5CYII="}],"wall":[{"id":1008531,"subject":"riveted panel","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAvUlEQVR42mNggAO2/6RhFMD2f+7KQ2DcN2UzHLf3LMeK88tmoRvCBhb08UnEie1sveFYVEQG04Ca1gVghSCDuDh4sGqG2YzVAJgLYH7EZjNMDq8B+JyO1wvYDMCmGacBOfm9KP5E12Rpao8/DGAGwPyJzQC8YQAzAJ/zVVU0wRivAbgwTDNOA6LjisEKQQaB+CAno2sGhQFIM14DQAqRwwDZZlg4YDUA5m/kQETWDDMYpwEwvxGLseZIcrIzAM7vWxrNsLcHAAAAAElFTkSuQmCC"},{"id":1008534,"subject":"riveted panel","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAvUlEQVR42mNgQAEc/4nDWAHH/9/vJhOFsRjC8X9eqMr/b8d9/+9YM+v/72t5YDY6RpZDMwRhgJN5wP/JPnJYDQDJwdThNOD5PMf/H5ZbYzUAJAfCOA0AYSF+BTj++TAGjLGJYTWAWM0n5nrgNwCfZpDzQXycBuDTjCyO1QBiNYPU4owFYjFOA8CJ5VUbzoT063kd4YQEY389F4ZiQKujIjyR4TQAlIhwJaSP+5xxeQFiSKKGPFEYb44kNTsDANqa0q2Pl8+IAAAAAElFTkSuQmCC"},{"id":1008544,"subject":"riveted panel","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAtklEQVR42mNggID/ZGKI5ui4YgycmFQPx9jkQRhmyH8bK8f/UlLS/7m5ucFsXDbC1IHYqso6qAaAaJABIAkYjYxhYjDDYAbBDYBhGN/VJRRFHKYZnQ8PB5gtMM3YDIBpQrYdbgBIEbIB2DTDDEC3HcMAbBpJMgCbRhyBiWkAPs00MwAl9cH8iMv/OFMiLIEgSaBgkM0gOQMtE/QUi2oAvkBETrEgg+AGYHMqNoxDHdbsjAtgqAMAgkxC+xySJFoAAAAASUVORK5CYII="},{"id":1008545,"subject":"riveted panel","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAl0lEQVR42mNgAAP2/+RhqOZlO8/CsaGeHQofnxzUEHawRGRCI5jm5hRG4WOTS8rpA9MoBsBomCIYH5kNoq0sfFD4DMgKkQ3AhtHlUAyAOQvdmSBcUjqFeC+g0/jksHoBnU+0F2gaBsh+pl8YqKoawTGu8IEbICmuCE5tIBqdj00O5AUYH24ALhqfHIoB6IqxYWxqGSjNzgABcnL7t2KNTAAAAABJRU5ErkJggg=="},{"id":1008546,"subject":"riveted panel","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA5klEQVR42mNgAAO2/6gYF8Cqju3/5DmHwXji1N3/k3L6/mMqhGDs6qASiUn1/+XlNP47Ovj9FxGSA/NhOMg/BYzR1aEYANIEYsMMCI/IAdsEUoxsALI6uAEgDjIGKQJpgCmGGYCuDiUcQIphGKQY2ekwjKwGLbARtsD8DbIB3QBkl2A1AOZnbLYjy+M0AN3P6P7GEoCoBoBCHpdmPAHIgDUmkDEsTHDGQH3dov8t7evAGJTCQE4FKQLxYX6G8ZHVwdMBSAA9JaL7GWYA1pQIcgF6SkR2rpGRLdwAolIirsyENxzIzc4AI9eClmDYC60AAAAASUVORK5CYII="},{"id":1008548,"subject":"riveted panel","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAj0lEQVR42mNgQID/JGIU8D86oRIDhwQXgDE6H4TRDflvZxv4X1fbDIyR2diwkIAIdgNAJoMkYQbA+DCNMD5WA1zdIuGSMANgfJgBIHU4DYBpMjN1wut8nF4AuYAiA0AacfmZqDAAGQDzI7pNJIUBMZg2BuDyM7IX8IYBtngnKQyIdT5OL8BMJhZjzZHkZGcAbpA0gg4HWJcAAAAASUVORK5CYII="},{"id":1008558,"subject":"riveted panel","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbUlEQVR42mNggAO2/6RhFMD2Pya5jSSMZgjbf1vbiP8KCvr/tTVNwGwDQxcwGxsW5JfGNMDKwud/SHg5WBKmEGQTNj5OA2AS6Dah83EaAFOE7lx0Pl4DiME4DcDl59EwGDJhAJMgFmPNkeRkZwCmbjQLZn9ufwAAAABJRU5ErkJggg=="},{"id":1008571,"subject":"riveted panel","src":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAA00lEQVR42mNggID/SJgQwFD7Py2lC47RFGBgLGoZ/puZuv/n4RIA0/qG1v99g/P/B/mngDGIDcMK8mooalEMgGGQpKiIDFgSRCOzYRphGMUbIEkQBtkCcgU2DDMEhNHDC+50EA1zPghjMwTmKgwDYDQuzSDXgSzB6QKQyTADcHkDFh4kGwAKNJAL8HohIqoGZyAiRzFOA0B+w6UZ5gKcXoBFEcwbIMXoGFc0/s8tnALHhBISTF1iUj32pAyzAR0jp0S8SZlQZgKpcXQOAmMUb5CbnQHTgTiuHfjy3gAAAABJRU5ErkJggg=="}]};
+
+const ENEMIES = [
+  { slot: "hunter", name: "Hunter drone", pts: "100", text: "Homes in on you, often in pairs. Enters through doors." },
+  { slot: "sentry", name: "Corner sentry", pts: "25 each", text: "Comes as a set of four, bolted into the corners. Fires bolts across the room." },
+  { slot: "mine", name: "Drift mine", pts: "25", text: "Drifts in straight lines and bounces off walls. Touching it costs a ship." },
+  { slot: "warden", name: "Warden", pts: "125", text: "Slow and armored. Parks between you and the room's treasure." },
+  { slot: "brood", name: "Brood pod", pts: "500", text: "Never moves. Hatches hunter drones until you destroy it." },
+  { slot: "scavenger", name: "Scavenger", pts: "50", ghost: true, text: "Can't be destroyed. Snatches cargo and runs; hit it to make it drop the loot." },
+];
+const LOOT = [
+  { slot: "t1_coin", name: "Scrap Coin", pts: 500 },
+  { slot: "t2_chip", name: "Data Core", pts: 1000 },
+  { slot: "t3_star", name: "Star Shard", pts: 2000 },
+  { slot: "t4_crystal", name: "Relic Crystal", pts: 4000 },
+  { slot: "t5_idol", name: "Ancient Idol", pts: 8000 },
+];
+const ENV = [
+  { slot: "wall", name: "Wall plate", text: "Repeats around every room edge." },
+  { slot: "door", name: "Door frame", text: "Flanks each doorway. Gaps are 2 to 6 tiles wide." },
+  { slot: "exit", name: "Extraction pad", text: "Sits in the exit room. Fly onto it to bank your cargo and end the vault." },
+  { slot: "xmark", name: "Wreck marker", text: "Shows where your last ship went down and your cargo dropped." },
+];
+
+// Picks: first candidate by default; remembered per viewer when storage allows.
+const picks = {};
+for (const slot in SPRITES) picks[slot] = SPRITES[slot][0]?.id;
+try {
+  const saved = JSON.parse(localStorage.getItem("space-raider-picks") || "{}");
+  for (const slot in saved) if (SPRITES[slot]?.some((s) => s.id === saved[slot])) picks[slot] = saved[slot];
+} catch (e) {}
+
+const images = {};
+for (const slot in SPRITES) for (const s of SPRITES[slot]) { const img = new Image(); img.src = s.src; images[s.id] = img; }
+const pick = (slot) => images[picks[slot]];
+const entry = (slot) => SPRITES[slot].find((s) => s.id === picks[slot]);
+
+function candidates(slot) {
+  const box = document.createElement("div");
+  box.className = "cands";
+  for (const s of SPRITES[slot]) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "cand"; b.dataset.slot = slot; b.dataset.id = s.id;
+    b.title = `${s.subject} · #${s.id}`;
+    b.setAttribute("aria-label", `${s.subject}, catalog ${s.id}`);
+    b.setAttribute("aria-pressed", String(s.id === picks[slot]));
+    const img = document.createElement("img"); img.src = s.src; img.alt = "";
+    b.append(img); box.append(b);
+  }
+  return box;
+}
+
+function card({ slot, name, pts, ghost, text, bar }) {
+  const c = document.createElement("article");
+  c.className = "card"; c.dataset.slot = slot;
+  const head = document.createElement("div"); head.className = "card-head";
+  const hero = document.createElement("img"); hero.className = "hero-sprite"; hero.alt = name; hero.dataset.hero = slot;
+  const title = document.createElement("div"); title.className = "card-title";
+  const h = document.createElement("h3"); h.textContent = name; title.append(h);
+  if (pts) { const chip = document.createElement("span"); chip.className = ghost ? "chip ghost" : "chip"; chip.textContent = `${pts} pts`; title.append(chip); }
+  const meta = document.createElement("span"); meta.className = "meta"; meta.dataset.meta = slot; title.append(meta);
+  head.append(hero, title); c.append(head);
+  if (bar) { const b = document.createElement("div"); b.className = "bar"; b.innerHTML = `<span style="width:${bar * 100}%"></span>`; c.append(b); }
+  if (text) { const p = document.createElement("p"); p.textContent = text; c.append(p); }
+  c.append(candidates(slot));
+  return c;
+}
+
+function shipCard() {
+  const c = card({ slot: "player", name: "Your ship", text: "Pick the silhouette that reads best at 1×. That's the size it plays at." });
+  const sizes = document.createElement("div"); sizes.className = "sizes";
+  for (const n of [1, 2, 4]) {
+    const f = document.createElement("figure");
+    const img = document.createElement("img"); img.width = 16 * n; img.height = 16 * n; img.alt = ""; img.dataset.hero = "player";
+    const cap = document.createElement("figcaption"); cap.textContent = `${n}× · ${16 * n}px`;
+    f.append(img, cap); sizes.append(f);
+  }
+  c.insertBefore(sizes, c.querySelector(".cands"));
+  return c;
+}
+
+document.getElementById("ship-grid").append(shipCard());
+for (const e of ENEMIES) document.getElementById("enemy-grid").append(card(e));
+for (const t of LOOT) document.getElementById("loot-grid").append(card({ ...t, pts: t.pts.toLocaleString("en-US"), bar: t.pts / 8000 }));
+for (const e of ENV) document.getElementById("env-grid").append(card(e));
+
+function refreshCards() {
+  document.querySelectorAll("[data-hero]").forEach((img) => (img.src = entry(img.dataset.hero).src));
+  document.querySelectorAll("[data-meta]").forEach((m) => { const s = entry(m.dataset.meta); m.textContent = `${s.subject} · #${s.id}`; });
+  document.querySelectorAll(".cand").forEach((b) => b.setAttribute("aria-pressed", String(Number(b.dataset.id) === picks[b.dataset.slot])));
+}
+refreshCards();
+
+document.addEventListener("click", (ev) => {
+  const b = ev.target.closest(".cand");
+  if (!b) return;
+  picks[b.dataset.slot] = Number(b.dataset.id);
+  try { localStorage.setItem("space-raider-picks", JSON.stringify(picks)); } catch (e) {}
+  refreshCards();
+});
+
+document.getElementById("copy-picks").addEventListener("click", () => {
+  const json = JSON.stringify(picks, null, 2);
+  const status = document.getElementById("copy-status");
+  const area = document.getElementById("picks-text");
+  const fallback = () => { area.value = json; area.hidden = false; area.focus(); area.select(); status.textContent = "Copy the selected text below."; };
+  try {
+    navigator.clipboard.writeText(json).then(() => { area.hidden = true; status.textContent = "Copied. Paste it back to Claude."; }, fallback);
+  } catch (e) { fallback(); }
+});
+
+// ---- Screen mockup ----
+const cv = document.getElementById("screen");
+const ctx = cv.getContext("2d");
+const W = 416, H = 228, T = 16, RY = 18, COLS = 20, ROWS = 12;
+const IN = { x0: T, y0: RY + T, x1: (COLS - 1) * T, y1: RY + (ROWS - 1) * T };
+const DOORS = { top: [8, 11], right: [5, 6], bottom: [7, 12] }; // tile spans; the left wall is solid
+const C = { void: "#05060d", ink: "#e7e4f6", dim: "#9295b8", amber: "#ffb547", beam: "#5ef2ff", danger: "#ff5f73", line: "#272d55", panel: "#13172e" };
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const tile = (c, r) => ({ x: c * T + 8, y: RY + r * T + 8 });
+
+const player = { ...tile(10, 6) };
+const keys = new Set();
+const mouse = { x: 160, y: 20, inside: false, last: -1e9 };
+let lastInput = -1e9, lastDevice = "kbm", padAim = -Math.PI / 2, padSeen = -1e9, snap8 = false, padLabel = "";
+let firing = false;
+const sentries = [tile(1, 1), tile(COLS - 2, 1), tile(1, ROWS - 2), tile(COLS - 2, ROWS - 2)].map((p, i) => ({ ...p, cool: 0.4 + i * 0.45 }));
+const bolts = [];
+const spawnPoints = [tile(9, 1), tile(COLS - 2, 5), tile(10, ROWS - 2)];
+const hunters = [{ ...spawnPoints[0] }, { ...spawnPoints[2] }];
+const mine = { ...tile(6, 4), vx: 26, vy: 17 };
+const idol = tile(16, 2);
+const warden = { ...tile(15, 3), t: 0 };
+const brood = tile(3, 8);
+const xmark = tile(7, 9);
+const loot = [{ slot: "t1_coin", ...tile(5, 3) }, { slot: "t3_star", ...tile(13, 9) }, { slot: "t4_crystal", ...tile(17, 9) }, { slot: "t5_idol", ...idol }, { slot: "t2_chip", x: xmark.x + 4, y: xmark.y - 3 }];
+const scav = { cx: tile(13, 5).x, cy: tile(13, 5).y, a: 0 };
+const VISITED = new Set(["0,2", "1,2", "1,3", "2,3", "2,4", "3,3", "3,2", "3,1"]);
+const CURRENT = "2,3", EXIT = "5,0", WRECK = "1,3";
+const hash = (a, b) => ((a * 73856093) ^ (b * 19349663)) >>> 0;
+
+function drawSprite(slot, x, y, angle = 0, scale = 1) {
+  const img = pick(slot);
+  if (!img || !img.complete) return;
+  ctx.save(); ctx.translate(Math.round(x), Math.round(y));
+  if (angle) ctx.rotate(angle);
+  ctx.drawImage(img, -8 * scale, -8 * scale, 16 * scale, 16 * scale);
+  ctx.restore();
+}
+
+function text(str, x, y, color = C.ink, align = "left") {
+  ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = "top"; ctx.font = "8px Silkscreen, monospace";
+  ctx.fillText(str, x, y);
+}
+
+function inDoor(c, r) {
+  if (r === 0) return c >= DOORS.top[0] && c <= DOORS.top[1];
+  if (r === ROWS - 1) return c >= DOORS.bottom[0] && c <= DOORS.bottom[1];
+  if (c === COLS - 1) return r >= DOORS.right[0] && r <= DOORS.right[1];
+  return false;
+}
+function besideDoor(c, r) {
+  return !inDoor(c, r) && (inDoor(c - 1, r) || inDoor(c + 1, r) || inDoor(c, r - 1) || inDoor(c, r + 1));
+}
+
+function drawRoom(t) {
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    const x = c * T, y = RY + r * T;
+    const edge = r === 0 || c === 0 || r === ROWS - 1 || c === COLS - 1;
+    if (!edge) {
+      const v = hash(c, r) % 3;
+      ctx.fillStyle = ["#121528", "#14182d", "#111324"][v]; ctx.fillRect(x, y, T, T);
+      ctx.fillStyle = "#0c0e1c"; ctx.fillRect(x, y + T - 1, T, 1); ctx.fillRect(x + T - 1, y, 1, T);
+      ctx.fillStyle = "#1d2240"; ctx.fillRect(x + 1, y + 1, 1, 1); ctx.fillRect(x + T - 3, y + T - 3, 1, 1);
+    } else if (inDoor(c, r)) {
+      ctx.fillStyle = C.void; ctx.fillRect(x, y, T, T);
+      const glow = 0.5 + 0.35 * Math.sin(t * 3);
+      ctx.fillStyle = `rgba(255,181,71,${glow})`;
+      if (r === 0) ctx.fillRect(x, y + T - 2, T, 1);
+      else if (r === ROWS - 1) ctx.fillRect(x, y + 1, T, 1);
+      else ctx.fillRect(x + 1, y, 1, T);
+    } else {
+      ctx.fillStyle = "#090a14"; ctx.fillRect(x, y, T, T);
+      drawSprite(besideDoor(c, r) ? "door" : "wall", x + 8, y + 8);
+    }
+  }
+}
+
+function drawHud(t) {
+  ctx.fillStyle = C.void; ctx.fillRect(0, 0, W, RY);
+  ctx.fillStyle = C.line; ctx.fillRect(0, RY - 1, W, 1);
+  text("SCORE", 4, 5, C.dim); text("012,450", 38, 5, C.amber);
+  text("SHIPS", 104, 5, C.dim);
+  for (let i = 0; i < 3; i++) drawSprite("player", 146 + i * 13, 9, 0, 0.75);
+  text("VAULT", 196, 5, C.dim); text("03", 230, 5, C.amber);
+  text("CARGO", 256, 5, C.dim); text("3,500", 292, 5, C.amber);
+  // Side panel: vault map + cargo
+  ctx.fillStyle = C.void; ctx.fillRect(320, RY, W - 320, H - RY);
+  ctx.fillStyle = C.line; ctx.fillRect(320, RY, 1, H - RY);
+  text("VAULT MAP", 368, RY + 6, C.dim, "center");
+  const mx = 330, my = RY + 18, cell = 12, gap = 1;
+  for (let r = 0; r < 6; r++) for (let c = 0; c < 6; c++) {
+    const k = `${c},${r}`, x = mx + c * (cell + gap), y = my + r * (cell + gap);
+    ctx.fillStyle = VISITED.has(k) ? "#2b3263" : C.panel;
+    if (k === EXIT) ctx.fillStyle = "#1a5a66";
+    if (k === CURRENT) ctx.fillStyle = Math.sin(t * 5) > -0.3 ? C.amber : "#7a5520";
+    ctx.fillRect(x, y, cell, cell);
+    if (k === EXIT) { ctx.fillStyle = C.beam; ctx.fillRect(x + 4, y + 4, 4, 4); }
+    if (k === WRECK) {
+      ctx.fillStyle = C.danger;
+      for (let i = 2; i < 10; i++) { ctx.fillRect(x + i, y + i, 1, 1); ctx.fillRect(x + 11 - i, y + i, 1, 1); }
+    }
+  }
+  const ly = my + 6 * (cell + gap) + 8;
+  text("CARGO", 330, ly, C.dim);
+  drawSprite("t1_coin", 338, ly + 20); drawSprite("t3_star", 356, ly + 20); drawSprite("t1_coin", 374, ly + 20); drawSprite("t3_star", 392, ly + 20);
+  text("3,500", 330, ly + 32, C.amber);
+  text("BANK AT", 330, ly + 50, C.dim);
+  ctx.fillStyle = C.beam; ctx.fillRect(330, ly + 62, 6, 6); text("EXIT", 340, ly + 61, C.beam);
+  // Bottom hint strip
+  ctx.fillStyle = C.void; ctx.fillRect(0, RY + ROWS * T, 320, H - RY - ROWS * T);
+  text(lastDevice === "pad" ? "L-STICK MOVE  ·  R-STICK AIM + FIRE" : "WASD MOVE  ·  MOUSE AIM  ·  HOLD CLICK FIRE", 160, RY + ROWS * T + 1, C.dim, "center");
+}
+
+function beamEnd(x, y, dx, dy) {
+  let best = 1e9;
+  if (dx > 0) best = Math.min(best, (IN.x1 - x) / dx); if (dx < 0) best = Math.min(best, (IN.x0 - x) / dx);
+  if (dy > 0) best = Math.min(best, (IN.y1 - y) / dy); if (dy < 0) best = Math.min(best, (IN.y0 - y) / dy);
+  return { x: x + dx * best, y: y + dy * best };
+}
+
+let lastTime = performance.now(), clock = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - lastTime) / 1000); lastTime = now; clock += dt;
+  const edt = reduceMotion ? 0 : dt;
+
+  // Player input
+  const pad = readPad(now);
+  let mx = (keys.has("d") ? 1 : 0) - (keys.has("a") ? 1 : 0), my = (keys.has("s") ? 1 : 0) - (keys.has("w") ? 1 : 0);
+  if (pad && (pad.mx || pad.my)) { mx = pad.mx; my = pad.my; }
+  const ml = Math.hypot(mx, my);
+  if (ml) { const k = Math.min(1, ml) / ml; player.x += mx * k * 72 * dt; player.y += my * k * 72 * dt; }
+  player.x = Math.max(IN.x0 + 7, Math.min(IN.x1 - 7, player.x)); player.y = Math.max(IN.y0 + 7, Math.min(IN.y1 - 7, player.y));
+  const demo = now - lastInput > 2500;
+  let aim = padSeen > mouse.last ? padAim : Math.atan2(mouse.y - player.y, mouse.x - player.x);
+  if (demo) aim = -Math.PI / 2 + Math.sin(clock * 0.7) * 1.2;
+  if (snap8) aim = Math.round(aim / (Math.PI / 4)) * (Math.PI / 4);
+  const shooting = demo ? Math.sin(clock * 2.2) > -0.2 : firing || Boolean(pad && pad.fire);
+
+  // Hostiles
+  for (const s of sentries) {
+    s.cool -= edt;
+    if (s.cool <= 0) { const a = Math.atan2(player.y - s.y, player.x - s.x); bolts.push({ x: s.x, y: s.y, vx: Math.cos(a) * 64, vy: Math.sin(a) * 64 }); s.cool = 1.8; }
+  }
+  for (let i = bolts.length - 1; i >= 0; i--) {
+    const b = bolts[i]; b.x += b.vx * edt; b.y += b.vy * edt;
+    if (b.x < IN.x0 || b.x > IN.x1 || b.y < IN.y0 || b.y > IN.y1) bolts.splice(i, 1);
+  }
+  hunters.forEach((h, i) => {
+    const a = Math.atan2(player.y - h.y, player.x - h.x);
+    h.x += Math.cos(a) * 20 * edt; h.y += Math.sin(a) * 20 * edt;
+    if (Math.hypot(player.x - h.x, player.y - h.y) < 14) Object.assign(h, spawnPoints[(i + Math.floor(clock)) % 3]);
+  });
+  mine.x += mine.vx * edt; mine.y += mine.vy * edt;
+  if (mine.x < IN.x0 + 8 || mine.x > IN.x1 - 8) mine.vx *= -1;
+  if (mine.y < IN.y0 + 8 || mine.y > IN.y1 - 8) mine.vy *= -1;
+  warden.t += edt; scav.a += edt * 1.4;
+
+  // Draw
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = C.void; ctx.fillRect(0, 0, W, H);
+  drawRoom(clock);
+  drawSprite("xmark", xmark.x, xmark.y);
+  for (const l of loot) drawSprite(l.slot, l.x, l.y + Math.sin(clock * 2 + l.x) * (reduceMotion ? 0 : 1));
+  const pulse = 9 + Math.sin(clock * 3) * (reduceMotion ? 0 : 2);
+  ctx.strokeStyle = "rgba(255,95,115,0.45)"; ctx.beginPath(); ctx.arc(brood.x, brood.y, pulse, 0, Math.PI * 2); ctx.stroke();
+  drawSprite("brood", brood.x, brood.y);
+  for (const s of sentries) drawSprite("sentry", s.x, s.y);
+  drawSprite("warden", warden.x + Math.sin(warden.t * 0.8) * 10, warden.y);
+  drawSprite("mine", mine.x, mine.y);
+  for (const h of hunters) drawSprite("hunter", h.x, h.y);
+  drawSprite("scavenger", scav.cx + Math.cos(scav.a) * 26, scav.cy + Math.sin(scav.a) * 16);
+  ctx.fillStyle = C.danger; for (const b of bolts) ctx.fillRect(Math.round(b.x) - 1, Math.round(b.y) - 1, 3, 3);
+
+  // The hull never rotates: the beam starts on the edge of a 14px box, so diagonals leave from a corner.
+  const dx = Math.cos(aim), dy = Math.sin(aim);
+  const hull = 7 / Math.max(Math.abs(dx), Math.abs(dy));
+  const sx = player.x + dx * hull, sy = player.y + dy * hull;
+  if (shooting) {
+    const end = beamEnd(sx, sy, dx, dy);
+    ctx.lineCap = "round";
+    ctx.strokeStyle = "rgba(94,242,255,0.28)"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(end.x, end.y); ctx.stroke();
+    ctx.strokeStyle = "#dffcff"; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(end.x, end.y); ctx.stroke();
+    ctx.fillStyle = C.beam; ctx.fillRect(Math.round(end.x) - 2, Math.round(end.y) - 2, 4, 4);
+  }
+  drawSprite("player", player.x, player.y);
+  ctx.fillStyle = shooting ? "#dffcff" : C.beam; ctx.fillRect(Math.round(sx) - 1, Math.round(sy) - 1, 2, 2);
+  drawHud(clock);
+  if (mouse.inside) {
+    ctx.fillStyle = C.amber; const cx = Math.round(mouse.x), cy = Math.round(mouse.y);
+    ctx.fillRect(cx - 5, cy, 3, 1); ctx.fillRect(cx + 3, cy, 3, 1); ctx.fillRect(cx, cy - 5, 1, 3); ctx.fillRect(cx, cy + 3, 1, 3);
+  }
+  requestAnimationFrame(frame);
+}
+
+function toCanvas(ev) {
+  const r = cv.getBoundingClientRect();
+  mouse.x = ((ev.clientX - r.left) / r.width) * W; mouse.y = ((ev.clientY - r.top) / r.height) * H;
+  mouse.last = lastInput = performance.now(); lastDevice = "kbm";
+}
+cv.addEventListener("pointermove", (ev) => { toCanvas(ev); mouse.inside = true; });
+cv.addEventListener("pointerleave", () => { mouse.inside = false; });
+cv.addEventListener("pointerdown", (ev) => { toCanvas(ev); mouse.inside = true; firing = true; cv.focus(); });
+window.addEventListener("pointerup", () => { firing = false; });
+cv.addEventListener("keydown", (ev) => { const k = ev.key.toLowerCase(); if ("wasd".includes(k) && k.length === 1) { keys.add(k); lastInput = performance.now(); lastDevice = "kbm"; ev.preventDefault(); } });
+cv.addEventListener("keyup", (ev) => keys.delete(ev.key.toLowerCase()));
+cv.addEventListener("blur", () => keys.clear());
+// Controller: standard mapping (Xbox layout). Left stick or D-pad moves, right stick aims and fires, RT/RB fire.
+function setPadStatus(label, on) {
+  if (label === padLabel) return;
+  padLabel = label;
+  const el = document.getElementById("pad-status");
+  el.textContent = label; el.dataset.on = String(on);
+}
+function readPad(now) {
+  let pads;
+  try { pads = navigator.getGamepads ? navigator.getGamepads() : []; }
+  catch (e) { setPadStatus("This viewer blocks controller input. Open design/concept-sheet.html in a browser tab to use it.", false); return null; }
+  const p = [...pads].find((g) => g && g.connected);
+  if (!p) { setPadStatus("No controller yet. Press any button on it.", false); return null; }
+  setPadStatus(`Connected: ${p.id.replace(/\s*\(.*\)\s*/g, " ").trim()}`, true);
+  const dz = (v) => (Math.abs(v) < 0.2 ? 0 : v);
+  const b = (i) => Boolean(p.buttons[i] && p.buttons[i].pressed);
+  const ax = p.axes;
+  const standard = p.mapping === "standard";
+  const out = { mx: dz(ax[0] || 0), my: dz(ax[1] || 0), fire: false };
+  if (b(12)) out.my = -1; if (b(13)) out.my = 1; if (b(14)) out.mx = -1; if (b(15)) out.mx = 1;
+  const rx = (standard ? ax[2] : ax[3]) || 0, ry = (standard ? ax[3] : ax[4]) || 0;
+  if (Math.hypot(rx, ry) > 0.35) { padAim = Math.atan2(ry, rx); padSeen = now; out.fire = true; }
+  const rt = standard ? (p.buttons[7] ? p.buttons[7].value : 0) : ((ax[5] || -1) + 1) / 2;
+  if (rt > 0.3 || b(5)) out.fire = true;
+  if (out.mx || out.my || out.fire || p.buttons.some((x) => x.pressed)) { lastInput = now; lastDevice = "pad"; }
+  return out;
+}
+window.addEventListener("gamepadconnected", () => { lastInput = performance.now(); lastDevice = "pad"; });
+
+document.querySelectorAll("[data-aim]").forEach((btn, _, all) => btn.addEventListener("click", () => {
+  snap8 = btn.dataset.aim === "8";
+  all.forEach((x) => x.setAttribute("aria-pressed", String(x === btn)));
+  document.getElementById("aim-note").textContent = snap8
+    ? "Eight directions, like the arcade original: four sides and four corners."
+    : "Free aim. The beam leaves the hull edge facing your aim.";
+}));
+
+requestAnimationFrame(frame);
+</script>

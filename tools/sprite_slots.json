@@ -1,0 +1,18 @@
+{
+  "player": {"subjects": ["drone", "flying saucer", "starfighter"], "picks": [378902, 378907, 378911, 378913, 378936, 378940, 474241, 1196843], "chosen": 378902},
+  "hunter": {"subjects": ["drone", "flying saucer"], "picks": [378902, 378907, 378911, 378913, 378936, 378940, 474241, 474279], "chosen": 474279},
+  "sentry": {"subjects": ["laser turret", "sentry turret"], "picks": [699902, 699904, 699908, 699910, 699915, 699919, 699920, 1078163], "chosen": 699915},
+  "mine": {"subjects": ["proximity mine", "naval mine"], "picks": [967968, 820799, 820803, 820813, 820814, 820821, 820833, 820846], "chosen": 967968},
+  "warden": {"subjects": ["battle mech", "robot soldier"], "picks": [78415, 78416, 78423, 78441, 78443, 78447, 78458, 1013612], "chosen": 78441},
+  "brood": {"subjects": ["monster egg", "spider egg sac"], "picks": [793405, 793407, 793420, 793429, 793431, 793435, 793439, 1164853], "chosen": 793431},
+  "scavenger": {"subjects": ["one-eyed alien", "winged eyeball"], "picks": [843944, 843945, 843952, 843965, 843975, 843980, 1382323, 1382333], "chosen": 843952},
+  "t1_coin": {"subjects": ["coin", "hexagonal coin"], "picks": [269975, 269988, 269997, 270001, 270008, 270018, 601274, 601280], "chosen": 601280},
+  "t2_chip": {"subjects": ["data chip", "computer chip"], "picks": [334046, 334057, 334059, 334060, 334061, 334074, 276665, 276688], "chosen": 276665},
+  "t3_star": {"subjects": ["star crystal", "star"], "picks": [1192152, 1192156, 1192158, 1192164, 1192171, 1192176, 1192178, 1192197], "chosen": 1192171},
+  "t4_crystal": {"subjects": ["power crystal", "mana crystal"], "picks": [960727, 960733, 960735, 960737, 960751, 960768, 750806, 750819], "chosen": 960727},
+  "t5_idol": {"subjects": ["idol statuette", "skull idol"], "picks": [639703, 639705, 639708, 1119075, 1119078, 1119080, 1119088, 1119116], "chosen": 1119116},
+  "door": {"subjects": ["vault door", "sliding door"], "picks": [1331413, 1331415, 1331425, 1331427, 1331428, 1331446, 1331450, 1331459], "chosen": 1331450},
+  "exit": {"subjects": ["teleporter pad", "portal swirl marker"], "picks": [1263385, 1263399, 1263402, 1263404, 1263424, 1263425, 951904, 951921], "chosen": 1263424},
+  "xmark": {"subjects": ["treasure x mark", "x mark"], "picks": [1303645, 1303659, 1303670, 1303681, 1400967, 1400977, 1400984, 1400994], "chosen": 1303645},
+  "wall": {"subjects": ["riveted panel", "vent grille"], "picks": [1008531, 1008534, 1008544, 1008545, 1008546, 1008548, 1008558, 1008571], "chosen": 1008531}
+}
