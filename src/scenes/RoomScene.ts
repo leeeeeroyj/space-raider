@@ -5,6 +5,7 @@ import {
 } from '../config';
 import { Controls } from '../controls';
 import { addGlow, addTreasureGlow, startSparkles } from '../fx';
+import { loopSound, playSound, toggleMute } from '../sfx';
 import { fitCamera } from '../view';
 import {
   GRID, OPPOSITE, SIDES, generateVault, hostileCount, mapCell, neighbor, roomIndex,
@@ -84,6 +85,39 @@ function rayToWall(ox: number, oy: number, dx: number, dy: number) {
   return Math.max(0, t);
 }
 
+/**
+ * Signpost arrows, as pixels on a 15×15 grid: pointing right, or down-right. The other six directions are exact
+ * 90° turns of these, so no rotated (blurred) pixels.
+ */
+function arrowPixels(diagonal: boolean) {
+  const px: Array<[number, number]> = [];
+  for (let y = 0; y < 15; y++) {
+    for (let x = 0; x < 15; x++) {
+      const on = diagonal
+        ? (x <= 12 && y <= 12 && x + y >= 19) || (x >= 2 && y >= 2 && x <= 10 && y <= 10 && Math.abs(x - y) <= 1)
+        : (y >= 6 && y <= 8 && x >= 1 && x <= 8) || (x >= 8 && x <= 13 && Math.abs(y - 7) <= 13 - x);
+      if (on) px.push([x, y]);
+    }
+  }
+  return px;
+}
+
+/** Textures sign-0 … sign-7: east, then clockwise in 45° steps (matching atan2 with y pointing down). */
+function makeSignTextures(scene: Phaser.Scene) {
+  if (scene.textures.exists('sign-0')) return;
+  for (let d = 0; d < 8; d++) {
+    let px = arrowPixels(d % 2 === 1);
+    for (let turn = 0; turn < Math.floor(d / 2); turn++) px = px.map(([x, y]) => [14 - y, x]);
+    const g = scene.make.graphics({}, false);
+    g.fillStyle(COLORS.void);
+    for (const [x, y] of px) g.fillRect(x + 1, y + 1, 1, 1);
+    g.fillStyle(COLORS.amber);
+    for (const [x, y] of px) g.fillRect(x, y, 1, 1);
+    g.generateTexture(`sign-${d}`, 16, 16);
+    g.destroy();
+  }
+}
+
 const insideInterior = (x: number, y: number) => x > INTERIOR.x0 && x < INTERIOR.x1 && y > INTERIOR.y0 && y < INTERIOR.y1;
 
 export class RoomScene extends Phaser.Scene {
@@ -96,17 +130,17 @@ export class RoomScene extends Phaser.Scene {
   private treasures!: Phaser.Physics.Arcade.StaticGroup;
   private pads!: Phaser.Physics.Arcade.StaticGroup;
   private doorGlow: Phaser.GameObjects.Graphics | undefined;
-  private wreckMark: Phaser.GameObjects.Image | undefined;
   private beam!: Phaser.GameObjects.Graphics;
   private crosshair!: Phaser.GameObjects.Graphics;
   private banner!: Phaser.GameObjects.Text;
   private subBanner!: Phaser.GameObjects.Text;
   private bannerFade: Phaser.Tweens.Tween | undefined;
+  /** Things drawn for the current room only (signpost, floating text, debris), cleared on the way out. */
+  private roomFx!: Phaser.GameObjects.Group;
+  private beamSound: Phaser.Sound.WebAudioSound | undefined;
 
   private vault!: Vault;
   private room!: Room;
-  /** Where you respawn after losing a ship: the doorway you entered this room by. */
-  private entry = CENTER;
   private runSeed = '';
   private score = 0;
   private lives = PLAYER.lives;
@@ -130,7 +164,7 @@ export class RoomScene extends Phaser.Scene {
     // Scene.restart() reuses this instance, so all run state is reset here.
     Object.assign(this, {
       score: 0, lives: PLAYER.lives, cargo: [], dead: false, over: false, banking: false, invulnerableUntil: 0,
-      wreckMark: undefined, doorGlow: undefined, bannerFade: undefined, runSeed: `${Date.now()}-${Math.random()}`,
+      doorGlow: undefined, bannerFade: undefined, runSeed: `${Date.now()}-${Math.random()}`,
       scavengerRolled: false, scavengerDue: undefined,
     });
     this.snap8 = AIM_MODE_SELECTABLE && this.registry.get(SNAP8) === true;
@@ -144,6 +178,10 @@ export class RoomScene extends Phaser.Scene {
       g.generateTexture(BOLT, 5, 5);
       g.destroy();
     }
+
+    makeSignTextures(this);
+    this.beamSound = loopSound(this, 'beam');
+    this.roomFx = this.add.group();
 
     this.physics.world.setBounds(0, HUD_H, ROOM_W, ROOM_H);
     this.drawFloor();
@@ -187,6 +225,7 @@ export class RoomScene extends Phaser.Scene {
       this.snap8 = !this.snap8;
       this.registry.set(SNAP8, this.snap8);
     }
+    if (input.mute) toggleMute(this);
 
     if (this.over) {
       if (time - this.overAt > 800) {
@@ -194,9 +233,11 @@ export class RoomScene extends Phaser.Scene {
         else if (input.back) this.toTitle();
       }
       this.beam.clear();
+      this.beamHum(false);
     } else if (this.banking) {
       this.player.setVelocity(0);
       this.beam.clear();
+      this.beamHum(false);
     } else {
       this.updatePlayer(input.move, time);
       this.updateEnemies(time);
@@ -221,7 +262,7 @@ export class RoomScene extends Phaser.Scene {
         cells: this.vault.rooms.map(mapCell),
         current: roomIndex(this.room),
         exit: roomIndex(this.vault.exit),
-        wreck: this.vault.wreck ? roomIndex(this.vault.wreck.room) : -1,
+        wreck: this.vault.wreck ? roomIndex(this.vault.wreck) : -1,
       },
     };
     this.registry.set(HUD_STATE, hud);
@@ -242,19 +283,22 @@ export class RoomScene extends Phaser.Scene {
 
   /** Swaps the room's contents for `room`. Hostiles still alive stay counted in the room you left. */
   private enterRoom(room: Room, from?: Side) {
+    // Whatever was on screen belonged to the last room: banners, floating text, debris.
+    this.hideBanner();
+    for (const o of this.roomFx.getChildren()) this.tweens.killTweensOf(o);
+    this.roomFx.clear(true, true);
     this.clearHostiles();
     this.treasures.clear(true, true);
     this.walls.clear(true, true);
     this.pads.clear(true, true);
     this.doorGlow?.destroy();
-    this.wreckMark?.destroy();
-    this.wreckMark = undefined;
 
     this.room = room;
     room.visited = true;
     this.buildWalls(room);
+    if (room !== this.vault.exit) this.addSignpost(room);
+    if (from) playSound(this, 'door');
     for (const loot of room.loot) this.placeTreasure(loot);
-    if (this.vault.wreck?.room === room) this.wreckMark = this.add.image(this.vault.wreck.x, this.vault.wreck.y, 'xmark').setDepth(3);
     if (room === this.vault.exit) {
       const pad = this.pads.create(CENTER.x, CENTER.y, 'exit') as Phaser.Physics.Arcade.Sprite;
       addGlow(this, pad.setDepth(3), COLORS.beam);
@@ -262,13 +306,23 @@ export class RoomScene extends Phaser.Scene {
       this.showBanner('EXTRACTION', 'FLY ONTO THE PAD TO BANK YOUR CARGO\nAND LEAVE THE VAULT', 2200);
     }
 
-    this.entry = from ? entryPoint(room, from) : CENTER;
-    this.player.body.reset(this.entry.x, this.entry.y);
+    const at = from ? entryPoint(room, from) : CENTER;
+    this.player.body.reset(at.x, at.y);
     this.nextSpawnAt = this.time.now + HUNTER.entryGraceMs;
     this.scavengerRolled = false;
     this.scavengerDue = undefined;
     this.buildFoes();
     this.cameras.main.fadeIn(160);
+  }
+
+  /** A floor arrow pointing straight toward the exit room (not the route: you still have to find the doors). */
+  private addSignpost(room: Room) {
+    const a = Math.atan2(this.vault.exit.row - room.row, this.vault.exit.col - room.col);
+    const dir = (((Math.round(a / (Math.PI / 4)) % 8) + 8) % 8);
+    const arrow = this.add.image(CENTER.x, CENTER.y, `sign-${dir}`).setDepth(1).setAlpha(0.6);
+    const label = this.add.text(CENTER.x, CENTER.y + 13, 'EXIT', { fontFamily: FONT, fontSize: '8px', color: TEXT.amber }).setOrigin(0.5).setDepth(1).setAlpha(0.6);
+    this.roomFx.addMultiple([arrow, label]);
+    this.tweens.add({ targets: [arrow, label], alpha: 0.25, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
   }
 
   /** Flying through a doorway past the room's edge takes you into the neighbouring room. */
@@ -346,6 +400,8 @@ export class RoomScene extends Phaser.Scene {
     this.dead = true;
     this.lives -= 1;
     this.beam.clear();
+    this.beamHum(false);
+    playSound(this, 'die');
     this.explode(this.player.x, this.player.y, COLORS.amber, 16);
     this.cameras.main.shake(180, 0.01);
     this.player.setVelocity(0).setVisible(false);
@@ -359,17 +415,17 @@ export class RoomScene extends Phaser.Scene {
       this.time.delayedCall(PLAYER.respawnDelayMs, () => {
         this.over = true;
         this.overAt = this.time.now;
+        playSound(this, 'gameOver');
         this.showBanner('GAME OVER', `SCORE ${pts(this.score)}\nENTER / A  RETRY      ESC / B  TITLE`);
       });
       return;
     }
+    // Respawn back at the vault's starting point; the room you died in keeps your dropped cargo.
     this.time.delayedCall(PLAYER.respawnDelayMs, () => {
-      this.player.body.reset(this.entry.x, this.entry.y);
+      this.enterRoom(this.vault.entrance);
       this.player.body.enable = true;
       this.player.setVisible(true);
       this.invulnerableUntil = this.time.now + PLAYER.invulnerableMs;
-      this.nextSpawnAt = this.time.now + HUNTER.entryGraceMs;
-      this.buildFoes(); // the room's other hostiles reset to their posts
       this.dead = false;
     });
   }
@@ -380,6 +436,7 @@ export class RoomScene extends Phaser.Scene {
     const earned = Math.floor(this.score / SCORING.extraShipEvery) - before;
     if (earned > 0) {
       this.lives += earned;
+      playSound(this, 'extraShip');
       this.floatText(this.player.x, this.player.y - 14, 'EXTRA SHIP', TEXT.beam);
     }
   }
@@ -402,29 +459,30 @@ export class RoomScene extends Phaser.Scene {
     this.room.loot.splice(this.room.loot.indexOf(loot), 1);
     this.cargo.push(loot.kind);
     this.floatText(t.x, t.y - 8, `+${TREASURE[loot.kind].name.toUpperCase()}`, TEXT.amber);
+    playSound(this, 'pickup', { detune: Object.keys(TREASURE).indexOf(loot.kind) * 200 });
     t.destroy();
     // 5200 rules: picking up any treasure clears the wreck X.
     this.clearWreck();
-    if (!this.room.loot.length) this.showBanner('LOOT CLEAR', 'NOTHING LEFT TO GRAB IN THIS ROOM', 1600);
+    if (!this.room.loot.length) {
+      this.showBanner('LOOT CLEAR', 'NOTHING LEFT TO GRAB IN THIS ROOM', 1600);
+      this.time.delayedCall(180, () => playSound(this, 'chime'));
+    }
   }
 
   private clearWreck() {
-    this.wreckMark?.destroy();
-    this.wreckMark = undefined;
     this.vault.wreck = undefined;
   }
 
   /**
    * Cargo drops where the ship died (Atari 5200 rules). Every drop stays in its room until you pick it up
-   * or the game ends; only the newest drop is marked with an X, and that X lasts for one life.
+   * or the game ends; only the newest drop's room is marked with an X on the vault map, for one life.
    */
   private dropCargo(x: number, y: number) {
     this.clearWreck();
     if (!this.cargo.length) return;
     const cx = Phaser.Math.Clamp(x, INTERIOR.x0 + 14, INTERIOR.x1 - 14);
     const cy = Phaser.Math.Clamp(y, INTERIOR.y0 + 14, INTERIOR.y1 - 14);
-    this.vault.wreck = { room: this.room, x: cx, y: cy };
-    this.wreckMark = this.add.image(cx, cy, 'xmark').setDepth(3);
+    this.vault.wreck = this.room;
     // Rings of 8 around the X, so a big haul spreads out instead of stacking.
     this.cargo.forEach((kind, i) => {
       const ring = Math.floor(i / 8), slot = i % 8;
@@ -449,7 +507,9 @@ export class RoomScene extends Phaser.Scene {
     if (this.dead || this.banking || this.over) return;
     this.banking = true;
     this.beam.clear();
+    this.beamHum(false);
     this.clearHostiles();
+    playSound(this, 'bank');
 
     const cargoValue = this.cargo.reduce((sum, k) => sum + TREASURE[k].value, 0);
     const visited = this.vault.rooms.filter((r) => r.visited).length;
@@ -537,9 +597,15 @@ export class RoomScene extends Phaser.Scene {
           break;
         case 'sentry': {
           const shotAt = e.getData('nextShotAt') as number;
-          // Blinks just before it fires, so you can get out of the line.
-          e.setAlpha(time > shotAt - SENTRY.telegraphMs && Math.floor(time / 60) % 2 ? 0.4 : 1);
+          // Blinks (and beeps) just before it fires, so you can get out of the line.
+          const warning = time > shotAt - SENTRY.telegraphMs;
+          e.setAlpha(warning && Math.floor(time / 60) % 2 ? 0.4 : 1);
+          if (warning && !e.getData('warned')) {
+            e.setData('warned', true);
+            playSound(this, 'warn');
+          }
           if (time >= shotAt) {
+            e.setData('warned', false);
             this.fireBolt(e);
             e.setData('nextShotAt', time + SENTRY.fireEveryMs * Phaser.Math.FloatBetween(0.8, 1.2));
           }
@@ -576,6 +642,7 @@ export class RoomScene extends Phaser.Scene {
     bolt.setDepth(9).setCircle(2, 0.5, 0.5);
     const a = Phaser.Math.Angle.Between(sentry.x, sentry.y, this.player.x, this.player.y);
     this.physics.velocityFromRotation(a, SENTRY.boltSpeed, (bolt.body as Phaser.Physics.Arcade.Body).velocity);
+    playSound(this, 'bolt');
   }
 
   /** Bolts stop at the walls. */
@@ -596,6 +663,7 @@ export class RoomScene extends Phaser.Scene {
     const d = this.addEnemy('hunter', brood.x + Math.cos(a) * 12, brood.y + Math.sin(a) * 12).setData('brood', true).setAlpha(0);
     this.tweens.add({ targets: d, alpha: 1, duration: HUNTER.armMs });
     this.explode(brood.x, brood.y, COLORS.danger, 6);
+    playSound(this, 'hatch');
   }
 
   private hurt(e: Enemy, amount: number) {
@@ -612,12 +680,16 @@ export class RoomScene extends Phaser.Scene {
     const kind = e.getData('kind') as EnemyKind;
     const foe = e.getData('foe') as Foe | undefined;
     this.explode(e.x, e.y, COLORS.danger, kind === 'brood' ? 24 : 10);
+    playSound(this, kind === 'brood' || kind === 'warden' ? 'boomBig' : 'boom');
     this.floatText(e.x, e.y - 8, `${ENEMY_POINTS[kind]}`, TEXT.ink);
     e.destroy();
     if (foe) this.room.foes.splice(this.room.foes.indexOf(foe), 1);
     else if (!e.getData('brood')) this.room.hunters -= 1;
     this.addScore(ENEMY_POINTS[kind]);
-    if (!hostileCount(this.room) && (foe || !e.getData('brood'))) this.floatText(ROOM_W / 2, HUD_H + 30, 'ROOM SECURE', TEXT.beam);
+    if (!hostileCount(this.room) && (foe || !e.getData('brood'))) {
+      this.floatText(ROOM_W / 2, HUD_H + 30, 'ROOM SECURE', TEXT.beam);
+      this.time.delayedCall(180, () => playSound(this, 'chime'));
+    }
   }
 
   // ---- Scavenger ----
@@ -655,6 +727,7 @@ export class RoomScene extends Phaser.Scene {
     s.setCircle(6, 2, 2).setDepth(8).setAlpha(0.7);
     s.setData({ kind: 'scavenger', shoo: SCAVENGER.shooHp, armedAt: this.time.now + HUNTER.armMs, fleeing: false });
     this.floatText(at.x, Phaser.Math.Clamp(at.y, HUD_H + 14, HUD_H + ROOM_H - 14), 'SCAVENGER!', TEXT.danger);
+    playSound(this, 'scavenger');
   }
 
   /** Grabs your most valuable piece of cargo and runs for it. */
@@ -664,6 +737,7 @@ export class RoomScene extends Phaser.Scene {
       const best = this.cargo.reduce((bi, k, i, all) => (TREASURE[k].value > TREASURE[all[bi]].value ? i : bi), 0);
       const [kind] = this.cargo.splice(best, 1);
       s.setData('stolen', kind).setTint(COLORS.loot);
+      playSound(this, 'steal');
       this.floatText(this.player.x, this.player.y - 12, `-${TREASURE[kind].name.toUpperCase()}`, TEXT.danger);
     }
     this.flee(s);
@@ -688,6 +762,7 @@ export class RoomScene extends Phaser.Scene {
     s.setData('shoo', left);
     if (left > 0) return;
     s.setData('shooed', true);
+    playSound(this, 'shoo');
     this.addScore(SCAVENGER.points);
     this.floatText(s.x, s.y - 8, `${SCAVENGER.points}`, TEXT.ink);
     const stolen = s.getData('stolen') as TreasureKind | undefined;
@@ -705,13 +780,24 @@ export class RoomScene extends Phaser.Scene {
     const rooms = this.vault.rooms.filter((r) => r !== this.room && r !== this.vault.exit);
     const hideout = Phaser.Utils.Array.GetRandom(rooms);
     hideout.loot.push({ kind: stolen, ...tileCenter(Phaser.Math.Between(3, COLS - 4), Phaser.Math.Between(3, ROWS - 4)) });
+    playSound(this, 'steal', { detune: -500 });
     this.showBanner('LOOT STOLEN', `THE SCAVENGER HID YOUR ${TREASURE[stolen].name.toUpperCase()}\nSOMEWHERE ELSE IN THE VAULT`, 2200);
   }
 
   // ---- Beam ----
 
+  /** The beam's hum loops while you fire, and rises in pitch while it's hitting something. */
+  private beamHum(on: boolean, hitting = false) {
+    const hum = this.beamSound;
+    if (!hum) return;
+    if (on && !hum.isPlaying) hum.play();
+    else if (!on && hum.isPlaying) hum.stop();
+    if (on) hum.setDetune(hitting ? 300 : 0);
+  }
+
   private updateBeam(firing: boolean, rawAim: number, dt: number) {
     this.beam.clear();
+    this.beamHum(firing && !this.dead);
     if (this.dead) return;
     const step = Math.PI / 4;
     const aim = this.snap8 ? Math.round(rawAim / step) * step : rawAim;
@@ -741,6 +827,7 @@ export class RoomScene extends Phaser.Scene {
       this.beam.lineStyle(1, COLORS.beamCore, 1).lineBetween(sx, sy, ex, ey);
       this.beam.fillStyle(target ? COLORS.beamCore : COLORS.beam).fillRect(Math.round(ex) - 2, Math.round(ey) - 2, 4, 4);
       if (target) this.hurt(target, BEAM.damagePerSecond * dt);
+      this.beamHum(true, Boolean(target));
     }
     this.beam.fillStyle(firing ? COLORS.beamCore : COLORS.beam).fillRect(Math.round(sx) - 1, Math.round(sy) - 1, 2, 2);
   }
@@ -752,6 +839,7 @@ export class RoomScene extends Phaser.Scene {
       const a = (i / count) * Math.PI * 2 + Math.random() * 0.4;
       const dist = 8 + Math.random() * 14;
       const bit = this.add.rectangle(x, y, 2, 2, color).setDepth(20);
+      this.roomFx.add(bit);
       this.tweens.add({
         targets: bit, x: x + Math.cos(a) * dist, y: y + Math.sin(a) * dist, alpha: 0,
         duration: 300 + Math.random() * 250, ease: 'Quad.out', onComplete: () => bit.destroy(),
@@ -761,7 +849,15 @@ export class RoomScene extends Phaser.Scene {
 
   private floatText(x: number, y: number, text: string, color: string) {
     const t = this.add.text(x, y, text, { fontFamily: FONT, fontSize: '8px', color }).setOrigin(0.5).setDepth(140);
+    this.roomFx.add(t);
     this.tweens.add({ targets: t, y: y - 10, alpha: 0, duration: 900, onComplete: () => t.destroy() });
+  }
+
+  private hideBanner() {
+    this.bannerFade?.remove();
+    this.bannerFade = undefined;
+    this.banner.setAlpha(0);
+    this.subBanner.setAlpha(0);
   }
 
   private showBanner(title: string, sub: string, ms?: number) {

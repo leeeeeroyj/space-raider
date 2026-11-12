@@ -11,6 +11,7 @@ export interface ControlState {
   toggleAim: boolean;
   confirm: boolean;
   back: boolean;
+  mute: boolean;
   device: Device;
 }
 
@@ -22,6 +23,7 @@ export interface MenuState {
   confirm: boolean;
   back: boolean;
   toggleAim: boolean;
+  mute: boolean;
   device: Device;
 }
 
@@ -30,14 +32,14 @@ const AIM_THRESHOLD = 0.35;
 const TRIGGER_THRESHOLD = 0.3;
 const MENU_STICK = 0.5;
 // Standard gamepad mapping (Xbox layout).
-const BTN = { A: 0, B: 1, BACK: 8, START: 9, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 } as const;
+const BTN = { A: 0, B: 1, Y: 3, BACK: 8, START: 9, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 } as const;
 const TRACKED = Object.values(BTN);
 
-type KeyName = 'W' | 'A' | 'S' | 'D' | 'Q' | 'ENTER' | 'SPACE' | 'ESC' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
+type KeyName = 'W' | 'A' | 'S' | 'D' | 'Q' | 'M' | 'ENTER' | 'SPACE' | 'ESC' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
 
 /**
  * One input layer for keyboard + mouse and a controller. Whichever was used last owns the aim.
- * Controller: left stick or D-pad moves, right stick aims and fires, RT/RB fire, Back toggles aim mode.
+ * Controller: left stick or D-pad moves, right stick aims and fires, RT/RB fire, Y toggles sound, Back toggles aim mode.
  * Construct one per scene.
  */
 export class Controls {
@@ -50,7 +52,7 @@ export class Controls {
   private readonly keys: Record<KeyName, Phaser.Input.Keyboard.Key>;
 
   constructor(private readonly scene: Phaser.Scene) {
-    this.keys = scene.input.keyboard!.addKeys('W,A,S,D,Q,ENTER,SPACE,ESC,UP,DOWN,LEFT,RIGHT') as Controls['keys'];
+    this.keys = scene.input.keyboard!.addKeys('W,A,S,D,Q,M,ENTER,SPACE,ESC,UP,DOWN,LEFT,RIGHT') as Controls['keys'];
     scene.input.mouse?.disableContextMenu();
     scene.input.on('pointermove', () => {
       this.device = 'kbm';
@@ -85,6 +87,7 @@ export class Controls {
     let toggleAim = just(k.Q);
     let confirm = just(k.ENTER) || just(k.SPACE);
     let back = just(k.ESC);
+    let mute = just(k.M);
 
     const pad = this.pad();
     const edges = this.padEdges(pad);
@@ -114,10 +117,11 @@ export class Controls {
       if (edges.has(BTN.BACK)) toggleAim = true;
       if (edges.has(BTN.START) || edges.has(BTN.A)) confirm = true;
       if (edges.has(BTN.B)) back = true;
+      if (edges.has(BTN.Y)) mute = true;
     }
 
     const aim = this.device === 'pad' ? this.padAim : Math.atan2(pointer.worldY - from.y, pointer.worldX - from.x);
-    return { move, aim, fire, toggleAim, confirm, back, device: this.device };
+    return { move, aim, fire, toggleAim, confirm, back, mute, device: this.device };
   }
 
   readMenu(): MenuState {
@@ -131,6 +135,7 @@ export class Controls {
       confirm: just(k.ENTER) || just(k.SPACE),
       back: just(k.ESC),
       toggleAim: just(k.Q),
+      mute: just(k.M),
       device: this.device,
     };
     if (Object.values(s).some((v) => v === true)) this.device = s.device = 'kbm';
@@ -148,6 +153,7 @@ export class Controls {
       s.confirm ||= edges.has(BTN.A) || edges.has(BTN.START);
       s.back ||= edges.has(BTN.B);
       s.toggleAim ||= edges.has(BTN.BACK);
+      s.mute ||= edges.has(BTN.Y);
       if (Math.abs(x) > MENU_STICK || Math.abs(y) > MENU_STICK) this.device = 'pad';
       this.prevStick = { x, y };
       s.device = this.device;

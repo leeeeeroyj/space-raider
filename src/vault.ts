@@ -34,8 +34,8 @@ export interface Vault {
   rooms: Room[];
   entrance: Room;
   exit: Room;
-  /** Your most recent drop. Marked with an X for one life (Atari 5200 rules). */
-  wreck?: { room: Room; x: number; y: number };
+  /** The room holding your most recent drop: an X on the vault map for one life (Atari 5200 rules). */
+  wreck?: Room;
 }
 
 export type MapCell = 'unvisited' | 'loot' | 'hostile' | 'clear';

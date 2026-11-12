@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { COLORS, FONT, HUD_H, HUD_SCALE, HUD_STATE, ROOM_H, ROOM_W, TEXT, TREASURE, WIDTH, HEIGHT, type TreasureKind } from '../config';
 import type { Device } from '../controls';
+import { MUTED } from '../sfx';
 import { GRID, type MapCell } from '../vault';
 import { fitCamera } from '../view';
 
@@ -45,6 +46,7 @@ export class HudScene extends Phaser.Scene {
   private level!: Phaser.GameObjects.Text;
   private hostiles!: Phaser.GameObjects.Text;
   private hint!: Phaser.GameObjects.Text;
+  private soundOff!: Phaser.GameObjects.Text;
   private mapCells!: Phaser.GameObjects.Graphics;
   private currentCell!: Phaser.GameObjects.Rectangle;
   private tiers!: Record<TreasureKind, TierRow>;
@@ -79,6 +81,7 @@ export class HudScene extends Phaser.Scene {
     this.level = label(500, 10, '', TEXT.amber);
     label(544, 10, 'CARGO');
     this.cargoValue = label(612, 10, '', TEXT.amber);
+    this.soundOff = label(W - 8, 10, 'SOUND OFF', TEXT.danger).setOrigin(1, 0);
 
     label(740, BAR + 12, 'VAULT MAP').setOrigin(0.5, 0);
     this.mapCells = this.add.graphics();
@@ -118,7 +121,8 @@ export class HudScene extends Phaser.Scene {
     this.cargoValue.setText(pts(total));
     this.level.setText(String(s.level).padStart(2, '0'));
     this.hostiles.setText(s.hostiles ? `HOSTILES ${s.hostiles}` : 'ROOM SECURE').setColor(s.hostiles ? TEXT.danger : TEXT.dim);
-    this.hint.setText(s.device === 'pad' ? 'L-STICK MOVE  ·  R-STICK AIM + FIRE' : 'WASD MOVE  ·  MOUSE AIM  ·  CLICK FIRE');
+    this.hint.setText(s.device === 'pad' ? 'L-STICK MOVE  ·  R-STICK AIM + FIRE  ·  Y SOUND' : 'WASD MOVE  ·  MOUSE AIM  ·  CLICK FIRE  ·  M SOUND');
+    this.soundOff.setVisible(this.registry.get(MUTED) === true);
     this.drawMap(s.map);
 
     // Ships in reserve (not counting the one in play).

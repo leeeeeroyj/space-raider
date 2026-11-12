@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { AIM_MODE_SELECTABLE, FONT, HEIGHT, RENDER_SCALE, SNAP8, SPRITES, TEXT, WIDTH } from '../config';
 import { Controls } from '../controls';
 import { addTreasureGlow, startSparkles } from '../fx';
+import { playSound, registerSounds, restoreMute, toggleMute } from '../sfx';
 import { fitCamera } from '../view';
 
 type Star = { x: number; y: number; speed: number; alpha: number };
@@ -32,6 +33,8 @@ export class TitleScene extends Phaser.Scene {
     this.leaving = false;
     this.controls = new Controls(this);
     fitCamera(this, RENDER_SCALE);
+    registerSounds(this);
+    restoreMute(this);
     this.input.setDefaultCursor('default');
     this.cameras.main.fadeIn(250);
 
@@ -72,16 +75,20 @@ export class TitleScene extends Phaser.Scene {
     };
     const aimLine = (key: string) => (AIM_MODE_SELECTABLE ? `\n${key}` : '');
     const aimAction = AIM_MODE_SELECTABLE ? '\nAIM MODE' : '';
-    column(112, 'KEYBOARD + MOUSE', `WASD\nMOUSE\nHOLD CLICK${aimLine('Q')}`, `MOVE\nAIM\nFIRE${aimAction}`);
-    column(304, 'CONTROLLER', `L-STICK\nR-STICK\nRT${aimLine('BACK')}`, `MOVE\nAIM + FIRE\nFIRE${aimAction}`);
+    column(112, 'KEYBOARD + MOUSE', `WASD\nMOUSE\nHOLD CLICK${aimLine('Q')}\nM`, `MOVE\nAIM\nFIRE${aimAction}\nSOUND ON/OFF`);
+    column(304, 'CONTROLLER', `L-STICK\nR-STICK\nRT${aimLine('BACK')}\nY`, `MOVE\nAIM + FIRE\nFIRE${aimAction}\nSOUND ON/OFF`);
     this.padStatus = text(cx, 218, '', 8, TEXT.dim);
   }
 
   update(_time: number, delta: number) {
     this.drawStars(delta / 1000);
     const m = this.controls.readMenu();
+    if (m.mute) toggleMute(this);
     if (!this.leaving) {
-      if (m.up || m.down) this.selected = (this.selected + (m.down ? 1 : MENU.length - 1)) % MENU.length;
+      if ((m.up || m.down) && MENU.length > 1) {
+        this.selected = (this.selected + (m.down ? 1 : MENU.length - 1)) % MENU.length;
+        playSound(this, 'select');
+      }
       if (AIM_MODE_SELECTABLE && (m.toggleAim || (MENU[this.selected] === 'aim' && (m.left || m.right)))) this.toggleAim();
       else if (m.confirm) this.activate(this.selected);
     }
@@ -107,6 +114,7 @@ export class TitleScene extends Phaser.Scene {
       return;
     }
     this.leaving = true;
+    playSound(this, 'start');
     this.cameras.main.fadeOut(250);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('room'));
   }
