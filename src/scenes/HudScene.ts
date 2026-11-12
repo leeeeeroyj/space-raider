@@ -50,7 +50,7 @@ export class HudScene extends Phaser.Scene {
   private tiers!: Record<TreasureKind, TierRow>;
   private ships: Phaser.GameObjects.Image[] = [];
   private shownLives = -1;
-  private shownCargo = '';
+  private shownCargo: string | undefined;
 
   constructor() {
     super('hud');
@@ -60,7 +60,7 @@ export class HudScene extends Phaser.Scene {
     fitCamera(this, HUD_SCALE);
     this.ships = [];
     this.shownLives = -1;
-    this.shownCargo = '';
+    this.shownCargo = undefined;
     const label = (x: number, y: number, text: string, color = TEXT.dim) =>
       this.add.text(x, y, text, { fontFamily: FONT, fontSize: '16px', color });
 
