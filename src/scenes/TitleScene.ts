@@ -16,7 +16,7 @@ export class TitleScene extends Phaser.Scene {
   private menu: Phaser.GameObjects.Text[] = [];
   private stars: Star[] = [];
   private starfield!: Phaser.GameObjects.Graphics;
-  private padStatus!: Phaser.GameObjects.Text;
+  private padStatus: Phaser.GameObjects.Text | undefined;
   private leaving = false;
 
   constructor() {
@@ -29,6 +29,7 @@ export class TitleScene extends Phaser.Scene {
 
   create() {
     if (!this.registry.has(SNAP8)) this.registry.set(SNAP8, false);
+    this.padStatus = undefined;
     this.selected = 0;
     this.leaving = false;
     this.controls = new Controls(this);
@@ -66,7 +67,9 @@ export class TitleScene extends Phaser.Scene {
       item.on('pointerdown', () => this.activate(i));
       return item;
     });
-    text(cx, 146, AIM_MODE_SELECTABLE ? 'UP / DOWN CHOOSE  ·  ENTER / A SELECT  ·  LEFT / RIGHT CHANGE AIM' : 'PRESS ENTER OR A, OR CLICK START', 8, TEXT.dim);
+    // Phones and tablets get touch instructions instead of keyboard and controller ones.
+    const touchScreen = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+    text(cx, 146, touchScreen ? 'TAP START' : AIM_MODE_SELECTABLE ? 'UP / DOWN CHOOSE  ·  ENTER / A SELECT  ·  LEFT / RIGHT CHANGE AIM' : 'PRESS ENTER OR A, OR CLICK START', 8, TEXT.dim);
 
     const column = (x: number, title: string, keys: string, actions: string) => {
       text(x, 162, title, 8, TEXT.amber);
@@ -75,6 +78,10 @@ export class TitleScene extends Phaser.Scene {
     };
     const aimLine = (key: string) => (AIM_MODE_SELECTABLE ? `\n${key}` : '');
     const aimAction = AIM_MODE_SELECTABLE ? '\nAIM MODE' : '';
+    if (touchScreen) {
+      column(cx, 'TOUCH', 'LEFT THUMB\nRIGHT THUMB\nTAP', 'MOVE\nAIM + FIRE\nSOUND, TOP RIGHT');
+      return;
+    }
     column(112, 'KEYBOARD + MOUSE', `WASD\nMOUSE\nHOLD CLICK${aimLine('Q')}\nM`, `MOVE\nAIM\nFIRE${aimAction}\nSOUND ON/OFF`);
     column(304, 'CONTROLLER', `L-STICK\nR-STICK\nRT${aimLine('BACK')}\nY`, `MOVE\nAIM + FIRE\nFIRE${aimAction}\nSOUND ON/OFF`);
     this.padStatus = text(cx, 218, '', 8, TEXT.dim);
@@ -103,7 +110,7 @@ export class TitleScene extends Phaser.Scene {
 
     const pad = this.controls.pad();
     this.padStatus
-      .setText(pad ? 'CONTROLLER CONNECTED' : 'USING A CONTROLLER? PRESS ANY BUTTON ON IT')
+      ?.setText(pad ? 'CONTROLLER CONNECTED' : 'USING A CONTROLLER? PRESS ANY BUTTON ON IT')
       .setColor(pad ? TEXT.beam : TEXT.dim);
   }
 

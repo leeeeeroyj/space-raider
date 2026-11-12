@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
+import { HEIGHT, HUD_H } from './config';
 
-export type Device = 'kbm' | 'pad';
+export type Device = 'kbm' | 'pad' | 'touch';
 
 export interface ControlState {
   /** Movement, length 0..1. */
@@ -31,6 +32,14 @@ const DEADZONE = 0.2;
 const AIM_THRESHOLD = 0.35;
 const TRIGGER_THRESHOLD = 0.3;
 const MENU_STICK = 0.5;
+// Touch: invisible floating sticks. Radius is a fraction of screen height; touches in the top bar are left for taps.
+const TOUCH_RADIUS = 0.12;
+const TOUCH_DEADZONE = 0.15;
+const TOUCH_AIM_THRESHOLD = 0.3;
+const TOP_BAR = HUD_H / HEIGHT;
+
+/** A thumb on the screen: which pointer, and where its stick is centred (screen coordinates). */
+type Stick = { id: number; ox: number; oy: number };
 // Standard gamepad mapping (Xbox layout).
 const BTN = { A: 0, B: 1, Y: 3, BACK: 8, START: 9, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 } as const;
 const TRACKED = Object.values(BTN);
@@ -40,6 +49,7 @@ type KeyName = 'W' | 'A' | 'S' | 'D' | 'Q' | 'M' | 'ENTER' | 'SPACE' | 'ESC' | '
 /**
  * One input layer for keyboard + mouse and a controller. Whichever was used last owns the aim.
  * Controller: left stick or D-pad moves, right stick aims and fires, RT/RB fire, Y toggles sound, Back toggles aim mode.
+ * Touch: a thumb that lands on the left half moves, one on the right half aims and fires. Nothing is drawn.
  * Construct one per scene.
  */
 export class Controls {
@@ -47,6 +57,9 @@ export class Controls {
   /** False until the mouse has moved over the game, so no crosshair is drawn at (0, 0). */
   mouseSeen = false;
   private padAim = -Math.PI / 2;
+  private touchAim = -Math.PI / 2;
+  private moveStick: Stick | undefined;
+  private aimStick: Stick | undefined;
   private prevButtons = new Set<number>();
   private prevStick = { x: 0, y: 0 };
   private readonly keys: Record<KeyName, Phaser.Input.Keyboard.Key>;
@@ -54,11 +67,55 @@ export class Controls {
   constructor(private readonly scene: Phaser.Scene) {
     this.keys = scene.input.keyboard!.addKeys('W,A,S,D,Q,M,ENTER,SPACE,ESC,UP,DOWN,LEFT,RIGHT') as Controls['keys'];
     scene.input.mouse?.disableContextMenu();
-    scene.input.on('pointermove', () => {
+    scene.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+      if (p.wasTouch) return;
       this.device = 'kbm';
       this.mouseSeen = true;
     });
-    scene.input.on('pointerdown', () => (this.device = 'kbm'));
+    scene.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (!p.wasTouch) {
+        this.device = 'kbm';
+        return;
+      }
+      this.device = 'touch';
+      this.claimTouch(p);
+    });
+    const release = (p: Phaser.Input.Pointer) => {
+      if (this.moveStick?.id === p.id) this.moveStick = undefined;
+      if (this.aimStick?.id === p.id) this.aimStick = undefined;
+    };
+    scene.input.on('pointerup', release);
+    scene.input.on('pointerupoutside', release);
+  }
+
+  /** A new thumb becomes the move stick (left half) or the aim stick (right half), centred where it landed. */
+  private claimTouch(p: Phaser.Input.Pointer) {
+    const { width, height } = this.scene.scale;
+    if (p.y < height * TOP_BAR) return;
+    const stick = { id: p.id, ox: p.x, oy: p.y };
+    if (p.x < width / 2) this.moveStick ??= stick;
+    else this.aimStick ??= stick;
+  }
+
+  /**
+   * The stick's direction and strength (length 0..1). If the thumb drags past the radius, the centre follows it,
+   * so reversing direction is quick. Returns undefined (and lets go) if that finger has lifted.
+   */
+  private stickVector(stick: Stick): Phaser.Math.Vector2 | undefined {
+    const p = this.scene.input.manager.pointers.find((ptr) => ptr.id === stick.id);
+    if (!p || !p.isDown) {
+      if (this.moveStick === stick) this.moveStick = undefined;
+      if (this.aimStick === stick) this.aimStick = undefined;
+      return undefined;
+    }
+    const radius = this.scene.scale.height * TOUCH_RADIUS;
+    const dx = p.x - stick.ox, dy = p.y - stick.oy;
+    const length = Math.hypot(dx, dy);
+    if (length > radius) {
+      stick.ox += dx * (1 - radius / length);
+      stick.oy += dy * (1 - radius / length);
+    }
+    return new Phaser.Math.Vector2(p.x - stick.ox, p.y - stick.oy).scale(1 / radius);
   }
 
   /** The first connected controller, if the browser has seen one (it needs a button press first). */
@@ -83,7 +140,8 @@ export class Controls {
     const move = new Phaser.Math.Vector2((k.D.isDown ? 1 : 0) - (k.A.isDown ? 1 : 0), (k.S.isDown ? 1 : 0) - (k.W.isDown ? 1 : 0));
     if (move.lengthSq() > 0) move.normalize();
 
-    let fire = pointer.leftButtonDown();
+    // Phaser reports a touch as a held left button, so only a real mouse fires this way.
+    let fire = !pointer.wasTouch && pointer.leftButtonDown();
     let toggleAim = just(k.Q);
     let confirm = just(k.ENTER) || just(k.SPACE);
     let back = just(k.ESC);
@@ -120,7 +178,22 @@ export class Controls {
       if (edges.has(BTN.Y)) mute = true;
     }
 
-    const aim = this.device === 'pad' ? this.padAim : Math.atan2(pointer.worldY - from.y, pointer.worldX - from.x);
+    const thumbMove = this.moveStick && this.stickVector(this.moveStick);
+    if (thumbMove && thumbMove.length() > TOUCH_DEADZONE) {
+      move.copy(thumbMove);
+      this.device = 'touch';
+    }
+    const thumbAim = this.aimStick && this.stickVector(this.aimStick);
+    if (thumbAim && thumbAim.length() > TOUCH_AIM_THRESHOLD) {
+      this.touchAim = Math.atan2(thumbAim.y, thumbAim.x);
+      fire = true;
+      this.device = 'touch';
+    }
+
+    const aim =
+      this.device === 'pad' ? this.padAim
+      : this.device === 'touch' ? this.touchAim
+      : Math.atan2(pointer.worldY - from.y, pointer.worldX - from.x);
     return { move, aim, fire, toggleAim, confirm, back, mute, device: this.device };
   }
 

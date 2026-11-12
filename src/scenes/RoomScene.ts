@@ -416,7 +416,12 @@ export class RoomScene extends Phaser.Scene {
         this.over = true;
         this.overAt = this.time.now;
         playSound(this, 'gameOver');
-        this.showBanner('GAME OVER', `SCORE ${pts(this.score)}\nENTER / A  RETRY      ESC / B  TITLE`);
+        if (this.controls.device === 'touch') {
+          this.showBanner('GAME OVER', `SCORE ${pts(this.score)}`);
+          this.addTapButtons();
+        } else {
+          this.showBanner('GAME OVER', `SCORE ${pts(this.score)}\nENTER / A  RETRY      ESC / B  TITLE`);
+        }
       });
       return;
     }
@@ -679,14 +684,16 @@ export class RoomScene extends Phaser.Scene {
   private kill(e: Enemy) {
     const kind = e.getData('kind') as EnemyKind;
     const foe = e.getData('foe') as Foe | undefined;
+    // Read everything before destroy(): Phaser wipes the data, and getData() afterwards quietly returns undefined.
+    const fromBrood = e.getData('brood') === true;
     this.explode(e.x, e.y, COLORS.danger, kind === 'brood' ? 24 : 10);
     playSound(this, kind === 'brood' || kind === 'warden' ? 'boomBig' : 'boom');
     this.floatText(e.x, e.y - 8, `${ENEMY_POINTS[kind]}`, TEXT.ink);
     e.destroy();
     if (foe) this.room.foes.splice(this.room.foes.indexOf(foe), 1);
-    else if (!e.getData('brood')) this.room.hunters -= 1;
+    else if (!fromBrood) this.room.hunters -= 1;
     this.addScore(ENEMY_POINTS[kind]);
-    if (!hostileCount(this.room) && (foe || !e.getData('brood'))) {
+    if (!hostileCount(this.room) && !fromBrood) {
       this.floatText(ROOM_W / 2, HUD_H + 30, 'ROOM SECURE', TEXT.beam);
       this.time.delayedCall(180, () => playSound(this, 'chime'));
     }
@@ -851,6 +858,20 @@ export class RoomScene extends Phaser.Scene {
     const t = this.add.text(x, y, text, { fontFamily: FONT, fontSize: '8px', color }).setOrigin(0.5).setDepth(140);
     this.roomFx.add(t);
     this.tweens.add({ targets: t, y: y - 10, alpha: 0, duration: 900, onComplete: () => t.destroy() });
+  }
+
+  /** Game over on a phone: RETRY and TITLE as words to tap. */
+  private addTapButtons() {
+    const y = HUD_H + ROOM_H / 2 - 8;
+    const button = (x: number, label: string, action: () => void) => {
+      const t = this.add.text(x, y, label, { fontFamily: FONT, fontSize: '16px', color: TEXT.amber }).setOrigin(0.5).setDepth(150);
+      t.setInteractive(new Phaser.Geom.Rectangle(-16, -12, t.width + 32, t.height + 24), Phaser.Geom.Rectangle.Contains);
+      t.on('pointerdown', () => {
+        if (this.time.now - this.overAt > 800) action();
+      });
+    };
+    button(ROOM_W / 2 - 52, 'RETRY', () => this.scene.restart());
+    button(ROOM_W / 2 + 52, 'TITLE', () => this.toTitle());
   }
 
   private hideBanner() {

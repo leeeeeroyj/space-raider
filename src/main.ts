@@ -17,7 +17,8 @@ async function start() {
     pixelArt: true,
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
     physics: { default: 'arcade', arcade: { debug: false } },
-    input: { gamepad: true },
+    // Two touch pointers: one per thumb.
+    input: { gamepad: true, activePointers: 2 },
     scene: [TitleScene, RoomScene, HudScene],
   });
   // Dev-only handle for poking at the running game from the console or a test script.
