@@ -258,6 +258,10 @@ export class RoomScene extends Phaser.Scene {
     const hud: HudState = {
       score: this.score, lives: this.lives, cargo: this.cargo, device: input.device, level: this.vault.level,
       hostiles: hostileCount(this.room),
+      thumbs: {
+        move: this.controls.thumbs.move ? [this.controls.thumbs.move.x, this.controls.thumbs.move.y] : null,
+        aim: this.controls.thumbs.aim ? [this.controls.thumbs.aim.x, this.controls.thumbs.aim.y] : null,
+      },
       map: {
         cells: this.vault.rooms.map(mapCell),
         current: roomIndex(this.room),

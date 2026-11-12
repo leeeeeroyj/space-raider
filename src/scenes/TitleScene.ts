@@ -79,7 +79,7 @@ export class TitleScene extends Phaser.Scene {
     const aimLine = (key: string) => (AIM_MODE_SELECTABLE ? `\n${key}` : '');
     const aimAction = AIM_MODE_SELECTABLE ? '\nAIM MODE' : '';
     if (touchScreen) {
-      column(cx, 'TOUCH', 'LEFT THUMB\nRIGHT THUMB\nTAP', 'MOVE\nAIM + FIRE\nSOUND, TOP RIGHT');
+      column(cx, 'TOUCH', 'LEFT CIRCLE\nRIGHT CIRCLE\nTAP', 'MOVE\nAIM + FIRE\nSOUND, TOP RIGHT');
       return;
     }
     column(112, 'KEYBOARD + MOUSE', `WASD\nMOUSE\nHOLD CLICK${aimLine('Q')}\nM`, `MOVE\nAIM\nFIRE${aimAction}\nSOUND ON/OFF`);

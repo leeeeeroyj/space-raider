@@ -53,6 +53,12 @@ export const HUD_STATE = 'hudState';
 export const RENDER_SCALE = 4;
 export const HUD_SCALE = RENDER_SCALE / 2;
 
+/**
+ * Touch sticks, drawn as two circles in the bottom corners (design pixels). A thumb that lands within
+ * `grab` × radius of a centre takes that stick; dragging toward the rim gives direction and strength.
+ */
+export const TOUCH_STICKS = { radius: 24, grab: 1.75, move: { x: 40, y: 180 }, aim: { x: 376, y: 180 } } as const;
+
 export const PLAYER = { speed: 80, radius: 6, lives: 3, invulnerableMs: 1800, respawnDelayMs: 1000 };
 export const HUNTER = {
   speed: 30, speedPerLevel: 4, hp: 1, points: 100, maxAlive: 4, spawnEveryMs: 1800, armMs: 400,
