@@ -7,6 +7,7 @@ import { fitCamera } from '../view';
 type Star = { x: number; y: number; speed: number; alpha: number };
 const MENU: ReadonlyArray<'start' | 'aim'> = AIM_MODE_SELECTABLE ? ['start', 'aim'] : ['start'];
 const LOOT = ['t1_coin', 't2_chip', 't3_star', 't4_crystal', 't5_idol'] as const;
+const HOSTILES = ['hunter', 'sentry', 'mine', 'warden', 'brood', 'scavenger'] as const;
 
 export class TitleScene extends Phaser.Scene {
   private controls!: Controls;
@@ -53,8 +54,8 @@ export class TitleScene extends Phaser.Scene {
     text(196, 64, 'LOOT  500 TO 8,000', 8, TEXT.dim);
     const loot = LOOT.map((key, i) => addTreasureGlow(this, this.add.image(156 + i * 20, 86, key)));
     startSparkles(this, () => loot);
-    text(340, 64, 'HOSTILE', 8, TEXT.danger);
-    this.add.image(340, 86, 'hunter');
+    text(340, 64, 'HOSTILES', 8, TEXT.danger);
+    HOSTILES.forEach((key, i) => this.add.image(340 + (i - 2.5) * 18, 86, key).setAlpha(key === 'scavenger' ? 0.7 : 1));
 
     this.menu = MENU.map((_, i) => {
       const item = text(cx, 106 + i * 18 + (MENU.length === 1 ? 9 : 0), '', 16, TEXT.dim).setInteractive();

@@ -1,16 +1,27 @@
 import Phaser from 'phaser';
 import {
-  AIM_MODE_SELECTABLE, BEAM, COLORS, COLS, FONT, HUD_H, HUD_STATE, HUNTER, INTERIOR, PLAYER, RENDER_SCALE, ROOM_H, ROOM_W,
-  ROWS, SCORING, SNAP8, TEXT, TILE, TREASURE, tileCenter, type TreasureKind,
+  AIM_MODE_SELECTABLE, BEAM, BROOD, COLORS, COLS, FONT, HUD_H, HUD_STATE, HUNTER, INTERIOR, MINE, PLAYER, RENDER_SCALE, ROOM_H,
+  ROOM_W, ROWS, SCAVENGER, SCORING, SENTRY, SNAP8, TEXT, TILE, TREASURE, WARDEN, tileCenter, type TreasureKind,
 } from '../config';
 import { Controls } from '../controls';
 import { addGlow, addTreasureGlow, startSparkles } from '../fx';
 import { fitCamera } from '../view';
-import { GRID, OPPOSITE, SIDES, generateVault, mapCell, neighbor, roomIndex, type Loot, type Room, type Side, type Vault } from '../vault';
+import {
+  GRID, OPPOSITE, SIDES, generateVault, hostileCount, mapCell, neighbor, roomIndex,
+  type Foe, type FoeKind, type Loot, type Room, type Side, type Vault,
+} from '../vault';
 import type { HudState } from './HudScene';
 
+type Enemy = Phaser.Physics.Arcade.Sprite;
+type EnemyKind = 'hunter' | FoeKind;
+
 const CENTER = tileCenter(10, 6);
+const BOLT = 'fx-bolt';
 const pts = (n: number) => n.toLocaleString('en-US');
+const ENEMY_HP: Record<EnemyKind, number> = { hunter: HUNTER.hp, sentry: SENTRY.hp, mine: MINE.hp, warden: WARDEN.hp, brood: BROOD.hp };
+const ENEMY_POINTS: Record<EnemyKind, number> = {
+  hunter: HUNTER.points, sentry: SENTRY.points, mine: MINE.points, warden: WARDEN.points, brood: BROOD.points,
+};
 
 /** Is wall tile (col, row) an open doorway in this room? */
 function inDoor(room: Room, col: number, row: number) {
@@ -73,11 +84,15 @@ function rayToWall(ox: number, oy: number, dx: number, dy: number) {
   return Math.max(0, t);
 }
 
+const insideInterior = (x: number, y: number) => x > INTERIOR.x0 && x < INTERIOR.x1 && y > INTERIOR.y0 && y < INTERIOR.y1;
+
 export class RoomScene extends Phaser.Scene {
   private controls!: Controls;
   private player!: Phaser.Types.Physics.Arcade.ImageWithDynamicBody;
   private walls!: Phaser.Physics.Arcade.StaticGroup;
-  private hunters!: Phaser.Physics.Arcade.Group;
+  private enemies!: Phaser.Physics.Arcade.Group;
+  private scavengers!: Phaser.Physics.Arcade.Group;
+  private bolts!: Phaser.Physics.Arcade.Group;
   private treasures!: Phaser.Physics.Arcade.StaticGroup;
   private pads!: Phaser.Physics.Arcade.StaticGroup;
   private doorGlow: Phaser.GameObjects.Graphics | undefined;
@@ -103,6 +118,9 @@ export class RoomScene extends Phaser.Scene {
   private overAt = 0;
   private invulnerableUntil = 0;
   private nextSpawnAt = 0;
+  /** A scavenger can show up once per room visit, decided the first time you're in the room with cargo. */
+  private scavengerRolled = false;
+  private scavengerDue: number | undefined;
 
   constructor() {
     super('room');
@@ -113,27 +131,40 @@ export class RoomScene extends Phaser.Scene {
     Object.assign(this, {
       score: 0, lives: PLAYER.lives, cargo: [], dead: false, over: false, banking: false, invulnerableUntil: 0,
       wreckMark: undefined, doorGlow: undefined, bannerFade: undefined, runSeed: `${Date.now()}-${Math.random()}`,
+      scavengerRolled: false, scavengerDue: undefined,
     });
     this.snap8 = AIM_MODE_SELECTABLE && this.registry.get(SNAP8) === true;
     fitCamera(this, RENDER_SCALE);
     this.input.setDefaultCursor('none');
     this.scene.launch('hud');
+    if (!this.textures.exists(BOLT)) {
+      const g = this.make.graphics({}, false);
+      g.fillStyle(COLORS.danger).fillRect(0, 0, 5, 5);
+      g.fillStyle(0xffffff).fillRect(1, 1, 3, 3);
+      g.generateTexture(BOLT, 5, 5);
+      g.destroy();
+    }
 
     this.physics.world.setBounds(0, HUD_H, ROOM_W, ROOM_H);
     this.drawFloor();
     this.walls = this.physics.add.staticGroup();
     this.treasures = this.physics.add.staticGroup();
     this.pads = this.physics.add.staticGroup();
-    this.hunters = this.physics.add.group();
+    this.enemies = this.physics.add.group();
+    this.scavengers = this.physics.add.group();
+    this.bolts = this.physics.add.group();
 
     // No world-bounds collision for the ship: walls stop it, doorways let it through to the next room.
     this.player = this.physics.add.image(CENTER.x, CENTER.y, 'player').setDepth(10);
     this.player.setCircle(PLAYER.radius, 8 - PLAYER.radius, 8 - PLAYER.radius);
 
+    // Scavengers are ghosts: no wall or enemy collisions.
     this.physics.add.collider(this.player, this.walls);
-    this.physics.add.collider(this.hunters, this.walls);
-    this.physics.add.collider(this.hunters, this.hunters);
-    this.physics.add.overlap(this.player, this.hunters, (_p, h) => this.onHunterTouch(h as Phaser.Physics.Arcade.Sprite));
+    this.physics.add.collider(this.enemies, this.walls);
+    this.physics.add.collider(this.enemies, this.enemies);
+    this.physics.add.overlap(this.player, this.enemies, (_p, e) => this.onEnemyTouch(e as Enemy));
+    this.physics.add.overlap(this.player, this.scavengers, (_p, s) => this.onScavengerTouch(s as Enemy));
+    this.physics.add.overlap(this.player, this.bolts, (_p, b) => this.onBolt(b as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.player, this.treasures, (_p, t) => this.collect(t as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.player, this.pads, () => this.bank());
 
@@ -168,7 +199,9 @@ export class RoomScene extends Phaser.Scene {
       this.beam.clear();
     } else {
       this.updatePlayer(input.move, time);
-      this.updateHunters();
+      this.updateEnemies(time);
+      this.updateScavenger(time);
+      this.updateBolts();
       this.updateBeam(input.fire && !this.dead, input.aim, dt);
       this.checkDoorways();
     }
@@ -183,7 +216,7 @@ export class RoomScene extends Phaser.Scene {
 
     const hud: HudState = {
       score: this.score, lives: this.lives, cargo: this.cargo, device: input.device, level: this.vault.level,
-      hostiles: this.room.hostilesLeft,
+      hostiles: hostileCount(this.room),
       map: {
         cells: this.vault.rooms.map(mapCell),
         current: roomIndex(this.room),
@@ -207,9 +240,9 @@ export class RoomScene extends Phaser.Scene {
     this.showBanner(`VAULT ${level}`, 'FIND THE EXIT. GRAB WHAT GLOWS.', 2000);
   }
 
-  /** Swaps the room's contents for `room`. Drones still alive stay counted in the room you left. */
+  /** Swaps the room's contents for `room`. Hostiles still alive stay counted in the room you left. */
   private enterRoom(room: Room, from?: Side) {
-    this.hunters.clear(true, true);
+    this.clearHostiles();
     this.treasures.clear(true, true);
     this.walls.clear(true, true);
     this.pads.clear(true, true);
@@ -232,6 +265,9 @@ export class RoomScene extends Phaser.Scene {
     this.entry = from ? entryPoint(room, from) : CENTER;
     this.player.body.reset(this.entry.x, this.entry.y);
     this.nextSpawnAt = this.time.now + HUNTER.entryGraceMs;
+    this.scavengerRolled = false;
+    this.scavengerDue = undefined;
+    this.buildFoes();
     this.cameras.main.fadeIn(160);
   }
 
@@ -290,9 +326,18 @@ export class RoomScene extends Phaser.Scene {
     this.player.setAlpha(shielded && Math.floor(time / 80) % 2 ? 0.3 : 1);
   }
 
-  private onHunterTouch(hunter: Phaser.Physics.Arcade.Sprite) {
-    if (this.dead || this.over || this.banking || this.time.now < this.invulnerableUntil) return;
-    if (this.time.now < (hunter.getData('armedAt') as number)) return;
+  private canBeHit() {
+    return !this.dead && !this.over && !this.banking && this.time.now >= this.invulnerableUntil;
+  }
+
+  private onEnemyTouch(enemy: Enemy) {
+    if (!this.canBeHit() || this.time.now < (enemy.getData('armedAt') as number)) return;
+    this.loseShip();
+  }
+
+  private onBolt(bolt: Phaser.Physics.Arcade.Sprite) {
+    if (!this.canBeHit()) return;
+    bolt.destroy();
     this.loseShip();
   }
 
@@ -307,10 +352,8 @@ export class RoomScene extends Phaser.Scene {
     this.player.body.enable = false;
     this.dropCargo(this.player.x, this.player.y);
     // Drones on screen blow up with you but aren't killed: they stay in the room's count.
-    for (const h of [...this.hunters.getChildren()] as Phaser.Physics.Arcade.Sprite[]) {
-      this.explode(h.x, h.y, COLORS.danger, 6);
-      h.destroy();
-    }
+    for (const e of this.enemies.getChildren() as Enemy[]) if (e.getData('kind') === 'hunter') this.explode(e.x, e.y, COLORS.danger, 6);
+    this.clearHostiles();
 
     if (this.lives <= 0) {
       this.time.delayedCall(PLAYER.respawnDelayMs, () => {
@@ -326,6 +369,7 @@ export class RoomScene extends Phaser.Scene {
       this.player.setVisible(true);
       this.invulnerableUntil = this.time.now + PLAYER.invulnerableMs;
       this.nextSpawnAt = this.time.now + HUNTER.entryGraceMs;
+      this.buildFoes(); // the room's other hostiles reset to their posts
       this.dead = false;
     });
   }
@@ -386,15 +430,18 @@ export class RoomScene extends Phaser.Scene {
       const ring = Math.floor(i / 8), slot = i % 8;
       const a = (slot / 8) * Math.PI * 2 + ring * 0.4;
       const r = this.cargo.length > 1 ? 11 + ring * 10 : 0;
-      const loot: Loot = {
-        kind,
-        x: Phaser.Math.Clamp(cx + Math.cos(a) * r, INTERIOR.x0 + 6, INTERIOR.x1 - 6),
-        y: Phaser.Math.Clamp(cy + Math.sin(a) * r, INTERIOR.y0 + 6, INTERIOR.y1 - 6),
-      };
-      this.room.loot.push(loot);
-      this.placeTreasure(loot);
+      this.dropLoot(kind, cx + Math.cos(a) * r, cy + Math.sin(a) * r);
     });
     this.cargo = [];
+  }
+
+  /** Puts a treasure on this room's floor, kept inside the walls. */
+  private dropLoot(kind: TreasureKind, x: number, y: number) {
+    const loot: Loot = {
+      kind, x: Phaser.Math.Clamp(x, INTERIOR.x0 + 6, INTERIOR.x1 - 6), y: Phaser.Math.Clamp(y, INTERIOR.y0 + 6, INTERIOR.y1 - 6),
+    };
+    this.room.loot.push(loot);
+    this.placeTreasure(loot);
   }
 
   /** Landing on the extraction pad cashes in your cargo and ends the vault. */
@@ -402,7 +449,7 @@ export class RoomScene extends Phaser.Scene {
     if (this.dead || this.banking || this.over) return;
     this.banking = true;
     this.beam.clear();
-    for (const h of [...this.hunters.getChildren()] as Phaser.Physics.Arcade.Sprite[]) h.destroy();
+    this.clearHostiles();
 
     const cargoValue = this.cargo.reduce((sum, k) => sum + TREASURE[k].value, 0);
     const visited = this.vault.rooms.filter((r) => r.visited).length;
@@ -421,38 +468,244 @@ export class RoomScene extends Phaser.Scene {
     });
   }
 
-  // ---- Hunters ----
+  // ---- Hostiles ----
+
+  private addEnemy(kind: EnemyKind, x: number, y: number) {
+    const e = this.enemies.create(x, y, kind) as Enemy;
+    const big = kind === 'warden' || kind === 'brood';
+    e.setCircle(big ? 7 : 6, big ? 1 : 2, big ? 1 : 2).setDepth(8).setCollideWorldBounds(true);
+    e.setData({ kind, hp: ENEMY_HP[kind], armedAt: this.time.now + HUNTER.armMs });
+    return e;
+  }
+
+  /** Places the room's sentries, mines, wardens and brood pods at their starting spots. */
+  private buildFoes() {
+    const now = this.time.now, grace = now + HUNTER.entryGraceMs;
+    for (const foe of this.room.foes) {
+      const e = this.addEnemy(foe.kind, foe.x, foe.y).setData('foe', foe);
+      if (foe.kind === 'sentry' || foe.kind === 'brood') {
+        e.setImmovable(true);
+        (e.body as Phaser.Physics.Arcade.Body).moves = false;
+      }
+      if (foe.kind === 'sentry') e.setData('nextShotAt', grace + Math.random() * SENTRY.fireEveryMs);
+      if (foe.kind === 'brood') e.setData('nextHatchAt', grace + BROOD.hatchEveryMs / 2);
+      if (foe.kind === 'mine') e.setBounce(1).setData('wakeAt', grace);
+    }
+  }
+
+  /** Removes everything hostile from the screen. A scavenger leaving with your loot hides it elsewhere. */
+  private clearHostiles() {
+    const scavenger = this.scavengers.getFirstAlive() as Enemy | null;
+    if (scavenger) this.scavengerEscapes(scavenger);
+    this.enemies.clear(true, true);
+    this.bolts.clear(true, true);
+  }
 
   private spawnHunter() {
     if (this.over || this.dead || this.banking || this.time.now < this.nextSpawnAt) return;
-    const alive = this.hunters.countActive();
-    if (alive >= Math.min(HUNTER.maxAlive, this.room.hostilesLeft)) return;
-    const doors = doorTiles(this.room);
-    const options = doors.filter((p) => Phaser.Math.Distance.Between(p.x, p.y, this.player.x, this.player.y) > 64);
+    const alive = (this.enemies.getChildren() as Enemy[]).filter((e) => e.getData('kind') === 'hunter' && !e.getData('brood')).length;
+    if (alive >= Math.min(HUNTER.maxAlive, this.room.hunters)) return;
+    const options = doorTiles(this.room).filter((p) => Phaser.Math.Distance.Between(p.x, p.y, this.player.x, this.player.y) > 64);
     if (!options.length) return;
     const at = Phaser.Utils.Array.GetRandom(options);
-    const h = this.hunters.create(at.x, at.y, 'hunter') as Phaser.Physics.Arcade.Sprite;
-    h.setCircle(6, 2, 2).setDepth(8).setAlpha(0).setCollideWorldBounds(true);
-    h.setData('hp', HUNTER.hp).setData('armedAt', this.time.now + HUNTER.armMs);
+    const h = this.addEnemy('hunter', at.x, at.y).setAlpha(0);
     this.tweens.add({ targets: h, alpha: 1, duration: HUNTER.armMs });
     this.nextSpawnAt = this.time.now + HUNTER.spawnEveryMs;
   }
 
-  private updateHunters() {
-    const speed = HUNTER.speed + (this.vault.level - 1) * HUNTER.speedPerLevel;
-    for (const h of this.hunters.getChildren() as Phaser.Physics.Arcade.Sprite[]) {
-      if (this.dead) h.setVelocity(0);
-      else this.physics.moveToObject(h, this.player, speed);
+  private updateEnemies(time: number) {
+    const hunterSpeed = HUNTER.speed + (this.vault.level - 1) * HUNTER.speedPerLevel;
+    for (const e of [...this.enemies.getChildren()] as Enemy[]) {
+      if (this.dead) {
+        e.setVelocity(0);
+        continue;
+      }
+      switch (e.getData('kind') as EnemyKind) {
+        case 'hunter':
+          this.physics.moveToObject(e, this.player, hunterSpeed);
+          break;
+        case 'mine': {
+          if (time < e.getData('wakeAt')) break;
+          const v = (e.body as Phaser.Physics.Arcade.Body).velocity;
+          // Straight diagonal lines; bounces keep the speed, bumps into other hostiles don't sap it.
+          if (v.lengthSq() < 1) v.setToPolar(Phaser.Math.DegToRad(45 + 90 * Phaser.Math.Between(0, 3)), MINE.speed);
+          else v.setLength(MINE.speed);
+          break;
+        }
+        case 'warden':
+          this.moveWarden(e);
+          break;
+        case 'sentry': {
+          const shotAt = e.getData('nextShotAt') as number;
+          // Blinks just before it fires, so you can get out of the line.
+          e.setAlpha(time > shotAt - SENTRY.telegraphMs && Math.floor(time / 60) % 2 ? 0.4 : 1);
+          if (time >= shotAt) {
+            this.fireBolt(e);
+            e.setData('nextShotAt', time + SENTRY.fireEveryMs * Phaser.Math.FloatBetween(0.8, 1.2));
+          }
+          break;
+        }
+        case 'brood':
+          if (time >= e.getData('nextHatchAt')) {
+            e.setData('nextHatchAt', time + BROOD.hatchEveryMs);
+            if (this.broodDrones() < BROOD.maxDrones) this.hatch(e);
+          }
+          break;
+      }
     }
   }
 
-  private killHunter(h: Phaser.Physics.Arcade.Sprite) {
-    this.explode(h.x, h.y, COLORS.danger, 10);
-    this.floatText(h.x, h.y - 8, `${HUNTER.points}`, TEXT.ink);
-    h.destroy();
-    this.room.hostilesLeft -= 1;
-    this.addScore(HUNTER.points);
-    if (this.room.hostilesLeft === 0) this.floatText(ROOM_W / 2, HUD_H + 30, 'ROOM SECURE', TEXT.beam);
+  /** Parks between you and the nearest treasure in the room; with no treasure left, it comes for you. */
+  private moveWarden(e: Enemy) {
+    const loot = this.room.loot.reduce<Loot | undefined>(
+      (best, l) => (!best || Phaser.Math.Distance.Between(e.x, e.y, l.x, l.y) < Phaser.Math.Distance.Between(e.x, e.y, best.x, best.y) ? l : best),
+      undefined,
+    );
+    if (!loot) {
+      this.physics.moveToObject(e, this.player, WARDEN.speed);
+      return;
+    }
+    const a = Phaser.Math.Angle.Between(loot.x, loot.y, this.player.x, this.player.y);
+    const gx = loot.x + Math.cos(a) * WARDEN.guardDistance, gy = loot.y + Math.sin(a) * WARDEN.guardDistance;
+    if (Phaser.Math.Distance.Between(e.x, e.y, gx, gy) < 2) e.setVelocity(0);
+    else this.physics.moveTo(e, gx, gy, WARDEN.speed);
+  }
+
+  private fireBolt(sentry: Enemy) {
+    const bolt = this.bolts.create(sentry.x, sentry.y, BOLT) as Phaser.Physics.Arcade.Sprite;
+    bolt.setDepth(9).setCircle(2, 0.5, 0.5);
+    const a = Phaser.Math.Angle.Between(sentry.x, sentry.y, this.player.x, this.player.y);
+    this.physics.velocityFromRotation(a, SENTRY.boltSpeed, (bolt.body as Phaser.Physics.Arcade.Body).velocity);
+  }
+
+  /** Bolts stop at the walls. */
+  private updateBolts() {
+    for (const b of [...this.bolts.getChildren()] as Phaser.Physics.Arcade.Sprite[]) {
+      if (this.dead) b.setVelocity(0);
+      if (!insideInterior(b.x, b.y)) b.destroy();
+    }
+  }
+
+  private broodDrones() {
+    return (this.enemies.getChildren() as Enemy[]).filter((e) => e.getData('brood')).length;
+  }
+
+  /** Brood drones hunt like any drone but don't count toward the room: only the pod does. */
+  private hatch(brood: Enemy) {
+    const a = Math.random() * Math.PI * 2;
+    const d = this.addEnemy('hunter', brood.x + Math.cos(a) * 12, brood.y + Math.sin(a) * 12).setData('brood', true).setAlpha(0);
+    this.tweens.add({ targets: d, alpha: 1, duration: HUNTER.armMs });
+    this.explode(brood.x, brood.y, COLORS.danger, 6);
+  }
+
+  private hurt(e: Enemy, amount: number) {
+    if (e.getData('kind') === 'scavenger') {
+      this.shoo(e, amount);
+      return;
+    }
+    const hp = (e.getData('hp') as number) - amount;
+    e.setData('hp', hp);
+    if (hp <= 0) this.kill(e);
+  }
+
+  private kill(e: Enemy) {
+    const kind = e.getData('kind') as EnemyKind;
+    const foe = e.getData('foe') as Foe | undefined;
+    this.explode(e.x, e.y, COLORS.danger, kind === 'brood' ? 24 : 10);
+    this.floatText(e.x, e.y - 8, `${ENEMY_POINTS[kind]}`, TEXT.ink);
+    e.destroy();
+    if (foe) this.room.foes.splice(this.room.foes.indexOf(foe), 1);
+    else if (!e.getData('brood')) this.room.hunters -= 1;
+    this.addScore(ENEMY_POINTS[kind]);
+    if (!hostileCount(this.room) && (foe || !e.getData('brood'))) this.floatText(ROOM_W / 2, HUD_H + 30, 'ROOM SECURE', TEXT.beam);
+  }
+
+  // ---- Scavenger ----
+
+  private updateScavenger(time: number) {
+    if (!this.scavengerRolled && this.cargo.length) {
+      this.scavengerRolled = true;
+      if (Math.random() < SCAVENGER.chance) this.scavengerDue = time + Phaser.Math.Between(...SCAVENGER.delayMs);
+    }
+    if (this.scavengerDue !== undefined && time >= this.scavengerDue && !this.dead) {
+      this.scavengerDue = undefined;
+      this.spawnScavenger();
+    }
+    const s = this.scavengers.getFirstAlive() as Enemy | null;
+    if (!s) return;
+    if (this.dead) {
+      s.setVelocity(0);
+      return;
+    }
+    if (s.getData('fleeing')) {
+      const to = s.getData('fleeTo') as { x: number; y: number };
+      this.physics.moveTo(s, to.x, to.y, SCAVENGER.fleeSpeed);
+      if (s.x < -8 || s.x > ROOM_W + 8 || s.y < HUD_H - 8 || s.y > HUD_H + ROOM_H + 8) this.scavengerEscapes(s);
+    } else {
+      this.physics.moveToObject(s, this.player, SCAVENGER.speed);
+    }
+  }
+
+  private spawnScavenger() {
+    if (this.scavengers.getFirstAlive()) return;
+    const doors = doorTiles(this.room);
+    const at = doors.reduce((far, p) =>
+      Phaser.Math.Distance.Between(p.x, p.y, this.player.x, this.player.y) > Phaser.Math.Distance.Between(far.x, far.y, this.player.x, this.player.y) ? p : far);
+    const s = this.scavengers.create(at.x, at.y, 'scavenger') as Enemy;
+    s.setCircle(6, 2, 2).setDepth(8).setAlpha(0.7);
+    s.setData({ kind: 'scavenger', shoo: SCAVENGER.shooHp, armedAt: this.time.now + HUNTER.armMs, fleeing: false });
+    this.floatText(at.x, Phaser.Math.Clamp(at.y, HUD_H + 14, HUD_H + ROOM_H - 14), 'SCAVENGER!', TEXT.danger);
+  }
+
+  /** Grabs your most valuable piece of cargo and runs for it. */
+  private onScavengerTouch(s: Enemy) {
+    if (this.dead || this.over || this.banking || s.getData('fleeing') || this.time.now < (s.getData('armedAt') as number)) return;
+    if (this.cargo.length) {
+      const best = this.cargo.reduce((bi, k, i, all) => (TREASURE[k].value > TREASURE[all[bi]].value ? i : bi), 0);
+      const [kind] = this.cargo.splice(best, 1);
+      s.setData('stolen', kind).setTint(COLORS.loot);
+      this.floatText(this.player.x, this.player.y - 12, `-${TREASURE[kind].name.toUpperCase()}`, TEXT.danger);
+    }
+    this.flee(s);
+  }
+
+  /** Off through the nearest wall: scavengers don't need doors. */
+  private flee(s: Enemy) {
+    const edges = [
+      { d: s.y - HUD_H, x: s.x, y: HUD_H - 32 },
+      { d: HUD_H + ROOM_H - s.y, x: s.x, y: HUD_H + ROOM_H + 32 },
+      { d: s.x, x: -32, y: s.y },
+      { d: ROOM_W - s.x, x: ROOM_W + 32, y: s.y },
+    ];
+    const to = edges.reduce((a, b) => (b.d < a.d ? b : a));
+    s.setData({ fleeing: true, fleeTo: { x: to.x, y: to.y } });
+  }
+
+  /** Enough beam makes it drop what it stole and run. It can't be destroyed. */
+  private shoo(s: Enemy, amount: number) {
+    if (s.getData('shooed')) return;
+    const left = (s.getData('shoo') as number) - amount;
+    s.setData('shoo', left);
+    if (left > 0) return;
+    s.setData('shooed', true);
+    this.addScore(SCAVENGER.points);
+    this.floatText(s.x, s.y - 8, `${SCAVENGER.points}`, TEXT.ink);
+    const stolen = s.getData('stolen') as TreasureKind | undefined;
+    if (stolen) {
+      this.dropLoot(stolen, s.x, s.y);
+      s.setData('stolen', undefined).clearTint();
+    }
+    this.flee(s);
+  }
+
+  private scavengerEscapes(s: Enemy) {
+    const stolen = s.getData('stolen') as TreasureKind | undefined;
+    s.destroy();
+    if (!stolen) return;
+    const rooms = this.vault.rooms.filter((r) => r !== this.room && r !== this.vault.exit);
+    const hideout = Phaser.Utils.Array.GetRandom(rooms);
+    hideout.loot.push({ kind: stolen, ...tileCenter(Phaser.Math.Between(3, COLS - 4), Phaser.Math.Between(3, ROWS - 4)) });
+    this.showBanner('LOOT STOLEN', `THE SCAVENGER HID YOUR ${TREASURE[stolen].name.toUpperCase()}\nSOMEWHERE ELSE IN THE VAULT`, 2200);
   }
 
   // ---- Beam ----
@@ -469,20 +722,25 @@ export class RoomScene extends Phaser.Scene {
 
     if (firing) {
       let length = rayToWall(sx, sy, dx, dy);
-      let target: Phaser.Physics.Arcade.Sprite | undefined;
-      for (const h of this.hunters.getChildren() as Phaser.Physics.Arcade.Sprite[]) {
-        const t = rayCircle(sx, sy, dx, dy, h.x, h.y, BEAM.hitRadius);
-        if (t < length) { length = t; target = h; }
+      let target: Enemy | undefined;
+      const targets = [
+        ...(this.enemies.getChildren() as Enemy[]),
+        ...(this.scavengers.getChildren() as Enemy[]).filter((s) => !s.getData('shooed')),
+      ];
+      for (const e of targets) {
+        const kind = e.getData('kind');
+        const radius = kind === 'warden' ? WARDEN.hitRadius : kind === 'brood' ? BROOD.hitRadius : BEAM.hitRadius;
+        const t = rayCircle(sx, sy, dx, dy, e.x, e.y, radius);
+        if (t < length) {
+          length = t;
+          target = e;
+        }
       }
       const ex = sx + dx * length, ey = sy + dy * length;
       this.beam.lineStyle(4, COLORS.beam, 0.28).lineBetween(sx, sy, ex, ey);
       this.beam.lineStyle(1, COLORS.beamCore, 1).lineBetween(sx, sy, ex, ey);
       this.beam.fillStyle(target ? COLORS.beamCore : COLORS.beam).fillRect(Math.round(ex) - 2, Math.round(ey) - 2, 4, 4);
-      if (target) {
-        const hp = (target.getData('hp') as number) - BEAM.damagePerSecond * dt;
-        target.setData('hp', hp);
-        if (hp <= 0) this.killHunter(target);
-      }
+      if (target) this.hurt(target, BEAM.damagePerSecond * dt);
     }
     this.beam.fillStyle(firing ? COLORS.beamCore : COLORS.beam).fillRect(Math.round(sx) - 1, Math.round(sy) - 1, 2, 2);
   }

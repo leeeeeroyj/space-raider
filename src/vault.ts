@@ -14,14 +14,19 @@ const STEP: Record<Side, { dc: number; dr: number }> = {
 /** Inclusive span of open wall tiles, counted along the wall: columns for top/bottom, rows for left/right. */
 export interface Door { from: number; to: number }
 export interface Loot { kind: TreasureKind; x: number; y: number }
+/** Hostiles that live in a room at a fixed starting spot. Hunter drones are just a count: they come through doors. */
+export type FoeKind = 'sentry' | 'mine' | 'warden' | 'brood';
+export interface Foe { kind: FoeKind; x: number; y: number }
 export interface Room {
   col: number;
   row: number;
   doors: Partial<Record<Side, Door>>;
   /** Treasure lying in the room, including cargo dropped here. */
   loot: Loot[];
-  /** Hostiles not yet destroyed; drops only on a kill. */
-  hostilesLeft: number;
+  /** Hunter drones still to come; drops only on a kill. */
+  hunters: number;
+  /** Other hostiles still alive in the room. */
+  foes: Foe[];
   visited: boolean;
 }
 export interface Vault {
@@ -36,6 +41,7 @@ export interface Vault {
 export type MapCell = 'unvisited' | 'loot' | 'hostile' | 'clear';
 
 export const roomIndex = (room: Room) => room.row * GRID + room.col;
+export const hostileCount = (room: Room) => room.hunters + room.foes.length;
 
 export function neighbor(vault: Vault, room: Room, side: Side): Room | undefined {
   const c = room.col + STEP[side].dc, r = room.row + STEP[side].dr;
@@ -46,13 +52,16 @@ export function neighbor(vault: Vault, room: Room, side: Side): Room | undefined
 export function mapCell(room: Room): MapCell {
   if (!room.visited) return 'unvisited';
   if (room.loot.length) return 'loot';
-  if (room.hostilesLeft) return 'hostile';
+  if (hostileCount(room)) return 'hostile';
   return 'clear';
 }
 
 // Treasure tiers get rarer as they get more valuable.
 const TIER_ODDS: Array<[TreasureKind, number]> = [['t1_coin', 0.4], ['t2_chip', 0.28], ['t3_star', 0.18], ['t4_crystal', 0.1], ['t5_idol', 0.04]];
 const LOOT_COUNT_ODDS = [0.2, 0.4, 0.3, 0.1]; // chance of 0, 1, 2, 3 treasures in a room
+/** Chance a room gets each foe on vault 1; `perLevel` is added for each later vault. */
+const FOE_ODDS = { sentry: 0.22, mine: 0.35, warden: 0.45, brood: 0.1, perLevel: 0.05 };
+const CORNERS = [tileCenter(1, 1), tileCenter(COLS - 2, 1), tileCenter(1, ROWS - 2), tileCenter(COLS - 2, ROWS - 2)];
 
 function pickWeighted<T>(rnd: Phaser.Math.RandomDataGenerator, options: Array<[T, number]>): T {
   let roll = rnd.frac();
@@ -67,7 +76,7 @@ export function generateVault(level: number, seed: string): Vault {
   const rnd = new Phaser.Math.RandomDataGenerator([seed]);
   const rooms: Room[] = [];
   for (let row = 0; row < GRID; row++) {
-    for (let col = 0; col < GRID; col++) rooms.push({ col, row, doors: {}, loot: [], hostilesLeft: 0, visited: false });
+    for (let col = 0; col < GRID; col++) rooms.push({ col, row, doors: {}, loot: [], hunters: 0, foes: [], visited: false });
   }
   const vault = { level, rooms } as Vault;
 
@@ -125,21 +134,33 @@ export function generateVault(level: number, seed: string): Vault {
   }
   vault.exit = [...distance.entries()].reduce((a, b) => (b[1] > a[1] ? b : a))[0];
 
+  // Open floor away from the walls and out of the middle, where you arrive or the pad sits.
+  const floor: Array<{ c: number; r: number }> = [];
+  for (let r = 3; r <= ROWS - 4; r++) {
+    for (let c = 3; c <= COLS - 4; c++) if (Math.abs(c - 10) > 1 || Math.abs(r - 6) > 1) floor.push({ c, r });
+  }
+  const extra = level - 1;
   for (const room of rooms) {
-    if (room === vault.entrance) room.hostilesLeft = HUNTER.entranceRoom;
-    else if (rnd.frac() < 0.15) room.hostilesLeft = 0;
-    else room.hostilesLeft = rnd.between(HUNTER.perRoom[0], HUNTER.perRoom[1]) + (level - 1);
+    if (room === vault.entrance) room.hunters = HUNTER.entranceRoom;
+    else if (rnd.frac() < 0.15) room.hunters = 0;
+    else room.hunters = rnd.between(HUNTER.perRoom[0], HUNTER.perRoom[1]) + extra;
 
-    if (room === vault.exit) continue; // the extraction pad sits where loot would
-    const count = room === vault.entrance ? 2 : pickWeighted(rnd, LOOT_COUNT_ODDS.map((p, n): [number, number] => [n, p]));
-    // Loot sits away from the walls and out of the middle, where you arrive or the pad sits.
-    const tiles: Array<{ c: number; r: number }> = [];
-    for (let r = 3; r <= ROWS - 4; r++) {
-      for (let c = 3; c <= COLS - 4; c++) if (Math.abs(c - 10) > 1 || Math.abs(r - 6) > 1) tiles.push({ c, r });
+    const tiles = rnd.shuffle([...floor]);
+    const take = () => {
+      const t = tiles.pop()!;
+      return tileCenter(t.c, t.r);
+    };
+    if (room !== vault.exit) {
+      const count = room === vault.entrance ? 2 : pickWeighted(rnd, LOOT_COUNT_ODDS.map((p, n): [number, number] => [n, p]));
+      for (let i = 0; i < count; i++) room.loot.push({ kind: room === vault.entrance ? 't1_coin' : pickWeighted(rnd, TIER_ODDS), ...take() });
     }
-    for (const { c, r } of rnd.shuffle(tiles).slice(0, count)) {
-      room.loot.push({ kind: room === vault.entrance ? 't1_coin' : pickWeighted(rnd, TIER_ODDS), ...tileCenter(c, r) });
-    }
+    if (room === vault.entrance) continue; // a gentle start: just the two drones
+
+    const odds = (p: number) => rnd.frac() < p + FOE_ODDS.perLevel * extra;
+    if (odds(FOE_ODDS.sentry)) for (const corner of CORNERS) room.foes.push({ kind: 'sentry', ...corner });
+    if (odds(FOE_ODDS.mine)) for (let i = rnd.between(1, 2) + Math.floor(extra / 2); i > 0; i--) room.foes.push({ kind: 'mine', ...take() });
+    if (room.loot.length && odds(FOE_ODDS.warden)) room.foes.push({ kind: 'warden', ...take() });
+    if (odds(FOE_ODDS.brood)) room.foes.push({ kind: 'brood', ...take() });
   }
   return vault;
 }

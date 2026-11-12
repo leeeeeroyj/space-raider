@@ -66,6 +66,14 @@ export const HUNTER = {
 export const SCORING = { explorerBonus: 10000, extraShipEvery: 10000 };
 export const BEAM = { damagePerSecond: 5, hitRadius: 7 };
 
+// The other hostiles. hp is in seconds of beam at damagePerSecond 5 (so hp 5 = one second of fire).
+export const SENTRY = { hp: 0.5, points: 25, fireEveryMs: 2600, telegraphMs: 450, boltSpeed: 75 };
+export const MINE = { hp: 0.5, points: 25, speed: 32 };
+export const WARDEN = { hp: 4, points: 125, speed: 20, hitRadius: 8, guardDistance: 22 };
+export const BROOD = { hp: 5, points: 500, hitRadius: 8, hatchEveryMs: 3200, maxDrones: 3 };
+/** Can't be destroyed: shoo it with shooHp of beam. Shows up at most once per room visit, only while you carry cargo. */
+export const SCAVENGER = { points: 50, speed: 52, fleeSpeed: 95, shooHp: 0.4, chance: 0.35, delayMs: [3000, 7000] as const };
+
 export type TreasureKind = 't1_coin' | 't2_chip' | 't3_star' | 't4_crystal' | 't5_idol';
 export const TREASURE: Record<TreasureKind, { name: string; value: number }> = {
   t1_coin: { name: 'Scrap Coin', value: 500 },
