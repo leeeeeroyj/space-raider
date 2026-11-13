@@ -73,8 +73,9 @@ export const HOSTILE_COLORS = {
 } as const;
 
 /**
- * Touch sticks, drawn as two circles in the bottom corners (design pixels). A thumb that lands within
- * `grab` × radius of a centre takes that stick; dragging toward the rim gives direction and strength.
+ * Touch sticks (src/touch.ts). They sit in the bars beside the game when the screen is wide enough; otherwise at these
+ * bottom-corner spots (design pixels). A thumb landing within `grab` × radius of a centre takes that stick; dragging
+ * toward the rim gives direction and strength.
  */
 export const TOUCH_STICKS = { radius: 24, grab: 1.75, move: { x: 40, y: 180 }, aim: { x: 376, y: 180 } } as const;
 

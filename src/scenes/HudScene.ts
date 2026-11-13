@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { COLORS, FONT, TOUCH_STICKS, HUD_H, HUD_SCALE, HUD_STATE, ROOM_H, ROOM_W, TEXT, TREASURE, WIDTH, HEIGHT, type TreasureKind } from '../config';
+import { COLORS, FONT, HUD_H, HUD_SCALE, HUD_STATE, ROOM_H, ROOM_W, TEXT, TREASURE, WIDTH, HEIGHT, type TreasureKind } from '../config';
 import type { Device } from '../controls';
 import { MUTED, toggleMute } from '../sfx';
 import { GRID, type MapCell } from '../vault';
@@ -13,8 +13,6 @@ export interface HudState {
   level: number;
   /** Hostiles left in the current room. */
   hostiles: number;
-  /** Touch stick knobs, -1..1 from each circle's centre; null while no thumb is on that stick. */
-  thumbs: { move: [number, number] | null; aim: [number, number] | null };
   /** Room indexes are row * GRID + col; wreck is -1 when there's no marked drop. */
   map: { cells: MapCell[]; current: number; exit: number; wreck: number };
 }
@@ -49,9 +47,6 @@ export class HudScene extends Phaser.Scene {
   private hostiles!: Phaser.GameObjects.Text;
   private hint!: Phaser.GameObjects.Text;
   private soundToggle!: Phaser.GameObjects.Text;
-  private sticks!: Phaser.GameObjects.Graphics;
-  /** Phones and tablets always see the stick circles; other devices only once they've been touched. */
-  private touchScreen = false;
   private mapCells!: Phaser.GameObjects.Graphics;
   private currentCell!: Phaser.GameObjects.Rectangle;
   private tiers!: Record<TreasureKind, TierRow>;
@@ -120,8 +115,6 @@ export class HudScene extends Phaser.Scene {
     const below = PANEL.y + 32 + TIERS.length * ROW_H + 8;
     this.hostiles = label(PANEL.x, below, '');
     this.hint = label(RW / 2, RB + 2, '').setOrigin(0.5, 0);
-    this.sticks = this.add.graphics();
-    this.touchScreen = window.matchMedia?.('(pointer: coarse)').matches ?? false;
   }
 
   update() {
@@ -141,7 +134,6 @@ export class HudScene extends Phaser.Scene {
     const muted = this.registry.get(MUTED) === true;
     this.soundToggle.setText(muted ? 'SOUND OFF' : 'SOUND ON').setColor(muted ? TEXT.danger : TEXT.dim);
     this.drawMap(s.map);
-    this.drawSticks(s);
 
     // Ships in reserve (not counting the one in play).
     if (s.lives !== this.shownLives) {
@@ -185,20 +177,6 @@ export class HudScene extends Phaser.Scene {
     }
     const here = this.cellOrigin(map.current);
     this.currentCell.setPosition(here.x + 1, here.y + 1);
-  }
-
-  /** The two touch sticks: a faint circle each, and a knob that follows the thumb. */
-  private drawSticks(s: HudState) {
-    const g = this.sticks.clear();
-    if (!this.touchScreen && s.device !== 'touch') return;
-    const r = TOUCH_STICKS.radius * S;
-    for (const [which, color] of [['move', COLORS.amber], ['aim', COLORS.beam]] as const) {
-      const cx = TOUCH_STICKS[which].x * S, cy = TOUCH_STICKS[which].y * S;
-      const knob = s.thumbs[which];
-      g.fillStyle(color, 0.08).fillCircle(cx, cy, r);
-      g.lineStyle(2, color, knob ? 0.6 : 0.35).strokeCircle(cx, cy, r);
-      g.fillStyle(color, knob ? 0.55 : 0.25).fillCircle(cx + (knob?.[0] ?? 0) * r, cy + (knob?.[1] ?? 0) * r, r * 0.4);
-    }
   }
 
   private cellOrigin(index: number) {

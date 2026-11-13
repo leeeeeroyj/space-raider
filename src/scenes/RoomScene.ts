@@ -5,6 +5,7 @@ import {
 } from '../config';
 import { Controls } from '../controls';
 import { Effects } from '../effects';
+import { touchSticks } from '../touch';
 import { addGlow, addTreasureGlow, startSparkles } from '../fx';
 import { loopSound, playSound, toggleMute } from '../sfx';
 import { fitCamera } from '../view';
@@ -219,6 +220,8 @@ export class RoomScene extends Phaser.Scene {
     this.subBanner = this.add.text(mid.x, mid.y - 36, '', { fontFamily: FONT, fontSize: '8px', color: TEXT.ink, align: 'center', lineSpacing: 4 }).setOrigin(0.5, 0).setDepth(150);
 
     this.controls = new Controls(this);
+    touchSticks.show(true);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => touchSticks.show(false));
     startSparkles(this, () => this.treasures.getChildren().filter((t) => t.active) as Phaser.Physics.Arcade.Sprite[]);
     this.time.addEvent({ delay: HUNTER.spawnEveryMs / 3, loop: true, callback: () => this.spawnHunter() });
     this.startVault(1);
@@ -265,10 +268,6 @@ export class RoomScene extends Phaser.Scene {
     const hud: HudState = {
       score: this.score, lives: this.lives, cargo: this.cargo, device: input.device, level: this.vault.level,
       hostiles: hostileCount(this.room),
-      thumbs: {
-        move: this.controls.thumbs.move ? [this.controls.thumbs.move.x, this.controls.thumbs.move.y] : null,
-        aim: this.controls.thumbs.aim ? [this.controls.thumbs.aim.x, this.controls.thumbs.aim.y] : null,
-      },
       map: {
         cells: this.vault.rooms.map(mapCell),
         current: roomIndex(this.room),

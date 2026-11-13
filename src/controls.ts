@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { RENDER_SCALE, TOUCH_STICKS } from './config';
+import { touchSticks } from './touch';
 
 export type Device = 'kbm' | 'pad' | 'touch';
 
@@ -35,9 +35,6 @@ const MENU_STICK = 0.5;
 const TOUCH_DEADZONE = 0.15;
 const TOUCH_AIM_THRESHOLD = 0.3;
 
-export type ThumbStick = 'move' | 'aim';
-/** Where a thumb is on its stick: -1..1 on each axis, length at most 1. */
-export type Thumbs = Partial<Record<ThumbStick, Phaser.Math.Vector2>>;
 // Standard gamepad mapping (Xbox layout).
 const BTN = { A: 0, B: 1, Y: 3, BACK: 8, START: 9, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 } as const;
 const TRACKED = Object.values(BTN);
@@ -47,19 +44,16 @@ type KeyName = 'W' | 'A' | 'S' | 'D' | 'Q' | 'M' | 'ENTER' | 'SPACE' | 'ESC' | '
 /**
  * One input layer for keyboard + mouse and a controller. Whichever was used last owns the aim.
  * Controller: left stick or D-pad moves, right stick aims and fires, RT/RB fire, Y toggles sound, Back toggles aim mode.
- * Touch: two fixed sticks in the bottom corners (TOUCH_STICKS): left moves, right aims and fires. The HUD draws them.
+ * Touch: two sticks (src/touch.ts), left moves, right aims and fires.
  * Construct one per scene.
  */
 export class Controls {
-  device: Device = 'kbm';
+  /** Phones and tablets start in touch mode, so the hints are right before the first touch. */
+  device: Device = window.matchMedia?.('(pointer: coarse)').matches ? 'touch' : 'kbm';
   /** False until the mouse has moved over the game, so no crosshair is drawn at (0, 0). */
   mouseSeen = false;
   private padAim = -Math.PI / 2;
   private touchAim = -Math.PI / 2;
-  /** Which pointer is holding each stick. */
-  private held: Partial<Record<ThumbStick, number>> = {};
-  /** Latest stick positions, for drawing the knobs. */
-  thumbs: Thumbs = {};
   private prevButtons = new Set<number>();
   private prevStick = { x: 0, y: 0 };
   private readonly keys: Record<KeyName, Phaser.Input.Keyboard.Key>;
@@ -78,40 +72,7 @@ export class Controls {
         return;
       }
       this.device = 'touch';
-      this.claimTouch(p);
     });
-    const release = (p: Phaser.Input.Pointer) => {
-      if (this.held.move === p.id) this.held.move = undefined;
-      if (this.held.aim === p.id) this.held.aim = undefined;
-    };
-    scene.input.on('pointerup', release);
-    scene.input.on('pointerupoutside', release);
-  }
-
-  /** A thumb that lands on or near a stick's circle takes that stick. Touches anywhere else are ignored. */
-  private claimTouch(p: Phaser.Input.Pointer) {
-    for (const which of ['move', 'aim'] as const) {
-      const c = TOUCH_STICKS[which];
-      const reach = TOUCH_STICKS.radius * TOUCH_STICKS.grab * RENDER_SCALE;
-      if (this.held[which] === undefined && Math.hypot(p.x - c.x * RENDER_SCALE, p.y - c.y * RENDER_SCALE) <= reach) {
-        this.held[which] = p.id;
-        return;
-      }
-    }
-  }
-
-  /** The thumb's offset from the stick's centre, as -1..1 (clamped to the rim). Lets go if that finger has lifted. */
-  private stickVector(which: ThumbStick): Phaser.Math.Vector2 | undefined {
-    const id = this.held[which];
-    if (id === undefined) return undefined;
-    const p = this.scene.input.manager.pointers.find((ptr) => ptr.id === id);
-    if (!p || !p.isDown) {
-      this.held[which] = undefined;
-      return undefined;
-    }
-    const c = TOUCH_STICKS[which], radius = TOUCH_STICKS.radius * RENDER_SCALE;
-    const v = new Phaser.Math.Vector2(p.x - c.x * RENDER_SCALE, p.y - c.y * RENDER_SCALE).scale(1 / radius);
-    return v.length() > 1 ? v.normalize() : v;
   }
 
   /** The first connected controller, if the browser has seen one (it needs a button press first). */
@@ -174,9 +135,10 @@ export class Controls {
       if (edges.has(BTN.Y)) mute = true;
     }
 
-    const thumbMove = this.stickVector('move');
-    const thumbAim = this.stickVector('aim');
-    this.thumbs = { move: thumbMove, aim: thumbAim };
+    touchSticks.render();
+    if (touchSticks.active) this.device = 'touch';
+    const thumbMove = touchSticks.vector('move');
+    const thumbAim = touchSticks.vector('aim');
     if (thumbMove && thumbMove.length() > TOUCH_DEADZONE) {
       move.copy(thumbMove);
       this.device = 'touch';
