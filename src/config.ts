@@ -53,6 +53,25 @@ export const HUD_STATE = 'hudState';
 export const RENDER_SCALE = 4;
 export const HUD_SCALE = RENDER_SCALE / 2;
 
+/** Eye candy (src/effects.ts). Each part can be switched off on its own if it costs too much on a phone. */
+export const FX = {
+  /** Springy neon grid over the floor. Spacing in design pixels; stiffness pulls back to rest, coupling spreads ripples. */
+  grid: { enabled: true, spacing: 8, stiffness: 18, coupling: 700, damping: 3.5, maxOffset: 7, lineWidth: 0.5, alpha: 0.13, flashAlpha: 0.2, hueCycleSeconds: 24 },
+  /** Bright things (above `threshold`) get a soft halo. */
+  /** Each blur step is a full-screen pass, the costliest part of the effects; fewer, wider steps are cheaper. */
+  bloom: { enabled: true, threshold: 0.45, spread: 1.4, offset: 3, steps: 2, amount: 0.75 },
+};
+
+/** Spark colours when each kind blows up or takes damage. */
+export const HOSTILE_COLORS = {
+  hunter: [0xff3d6e, 0xff9a3d],
+  sentry: [0x5dff8a, 0x3dd8ff],
+  mine: [0xffd23d, 0xff6a3d],
+  warden: [0xff8a2e, 0xff3df0],
+  brood: [0xb46bff, 0xff3df0],
+  scavenger: [0xc6ff4d, 0x5dff8a],
+} as const;
+
 /**
  * Touch sticks, drawn as two circles in the bottom corners (design pixels). A thumb that lands within
  * `grab` × radius of a centre takes that stick; dragging toward the rim gives direction and strength.

@@ -1,9 +1,10 @@
 import Phaser from 'phaser';
 import {
-  AIM_MODE_SELECTABLE, BEAM, BROOD, COLORS, COLS, FONT, HUD_H, HUD_STATE, HUNTER, INTERIOR, MINE, PLAYER, RENDER_SCALE, ROOM_H,
+  AIM_MODE_SELECTABLE, BEAM, BROOD, COLORS, COLS, FONT, HOSTILE_COLORS, HUD_H, HUD_STATE, HUNTER, INTERIOR, MINE, PLAYER, RENDER_SCALE, ROOM_H,
   ROOM_W, ROWS, SCAVENGER, SCORING, SENTRY, SNAP8, TEXT, TILE, TREASURE, WARDEN, tileCenter, type TreasureKind,
 } from '../config';
 import { Controls } from '../controls';
+import { Effects } from '../effects';
 import { addGlow, addTreasureGlow, startSparkles } from '../fx';
 import { loopSound, playSound, toggleMute } from '../sfx';
 import { fitCamera } from '../view';
@@ -137,6 +138,9 @@ export class RoomScene extends Phaser.Scene {
   private bannerFade: Phaser.Tweens.Tween | undefined;
   /** Things drawn for the current room only (signpost, floating text, debris), cleared on the way out. */
   private roomFx!: Phaser.GameObjects.Group;
+  private fx!: Effects;
+  /** The hostile the beam is flashing white, so it can be put back when the beam moves off. */
+  private flashed: Enemy | undefined;
   private beamSound: Phaser.Sound.WebAudioSound | undefined;
 
   private vault!: Vault;
@@ -185,6 +189,8 @@ export class RoomScene extends Phaser.Scene {
 
     this.physics.world.setBounds(0, HUD_H, ROOM_W, ROOM_H);
     this.drawFloor();
+    this.fx = new Effects(this);
+    this.flashed = undefined;
     this.walls = this.physics.add.staticGroup();
     this.treasures = this.physics.add.staticGroup();
     this.pads = this.physics.add.staticGroup();
@@ -206,7 +212,7 @@ export class RoomScene extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.treasures, (_p, t) => this.collect(t as Phaser.Physics.Arcade.Sprite));
     this.physics.add.overlap(this.player, this.pads, () => this.bank());
 
-    this.beam = this.add.graphics().setDepth(12);
+    this.beam = this.add.graphics().setDepth(12).setBlendMode(Phaser.BlendModes.ADD);
     this.crosshair = this.add.graphics().setDepth(200);
     const mid = { x: ROOM_W / 2, y: HUD_H + ROOM_H / 2 };
     this.banner = this.add.text(mid.x, mid.y - 48, '', { fontFamily: FONT, fontSize: '16px', color: TEXT.amber }).setOrigin(0.5).setDepth(150);
@@ -247,6 +253,7 @@ export class RoomScene extends Phaser.Scene {
       this.checkDoorways();
     }
 
+    this.fx.update(dt);
     this.crosshair.clear();
     const pointer = this.input.activePointer;
     if (input.device === 'kbm' && this.controls.mouseSeen && pointer.worldX < ROOM_W && pointer.worldY > HUD_H) {
@@ -291,6 +298,7 @@ export class RoomScene extends Phaser.Scene {
     this.hideBanner();
     for (const o of this.roomFx.getChildren()) this.tweens.killTweensOf(o);
     this.roomFx.clear(true, true);
+    this.fx.clear();
     this.clearHostiles();
     this.treasures.clear(true, true);
     this.walls.clear(true, true);
@@ -406,13 +414,13 @@ export class RoomScene extends Phaser.Scene {
     this.beam.clear();
     this.beamHum(false);
     playSound(this, 'die');
-    this.explode(this.player.x, this.player.y, COLORS.amber, 16);
-    this.cameras.main.shake(180, 0.01);
+    this.fx.burst(this.player.x, this.player.y, [COLORS.amber, COLORS.beam, 0xff3df0], 'huge');
+    this.cameras.main.flash(140, 255, 70, 110);
     this.player.setVelocity(0).setVisible(false);
     this.player.body.enable = false;
     this.dropCargo(this.player.x, this.player.y);
     // Drones on screen blow up with you but aren't killed: they stay in the room's count.
-    for (const e of this.enemies.getChildren() as Enemy[]) if (e.getData('kind') === 'hunter') this.explode(e.x, e.y, COLORS.danger, 6);
+    for (const e of this.enemies.getChildren() as Enemy[]) if (e.getData('kind') === 'hunter') this.fx.burst(e.x, e.y, [...HOSTILE_COLORS.hunter]);
     this.clearHostiles();
 
     if (this.lives <= 0) {
@@ -468,6 +476,7 @@ export class RoomScene extends Phaser.Scene {
     this.room.loot.splice(this.room.loot.indexOf(loot), 1);
     this.cargo.push(loot.kind);
     this.floatText(t.x, t.y - 8, `+${TREASURE[loot.kind].name.toUpperCase()}`, TEXT.amber);
+    this.fx.pop(t.x, t.y, [COLORS.loot, COLORS.amber], 24);
     playSound(this, 'pickup', { detune: Object.keys(TREASURE).indexOf(loot.kind) * 200 });
     t.destroy();
     // 5200 rules: picking up any treasure clears the wreck X.
@@ -519,6 +528,7 @@ export class RoomScene extends Phaser.Scene {
     this.beamHum(false);
     this.clearHostiles();
     playSound(this, 'bank');
+    this.fx.pop(this.player.x, this.player.y, [COLORS.loot, COLORS.beam, COLORS.amber], 90);
 
     const cargoValue = this.cargo.reduce((sum, k) => sum + TREASURE[k].value, 0);
     const visited = this.vault.rooms.filter((r) => r.visited).length;
@@ -579,6 +589,7 @@ export class RoomScene extends Phaser.Scene {
     const at = Phaser.Utils.Array.GetRandom(options);
     const h = this.addEnemy('hunter', at.x, at.y).setAlpha(0);
     this.tweens.add({ targets: h, alpha: 1, duration: HUNTER.armMs });
+    this.fx.implode(at.x, at.y, HOSTILE_COLORS.hunter[0]);
     this.nextSpawnAt = this.time.now + HUNTER.spawnEveryMs;
   }
 
@@ -671,7 +682,8 @@ export class RoomScene extends Phaser.Scene {
     const a = Math.random() * Math.PI * 2;
     const d = this.addEnemy('hunter', brood.x + Math.cos(a) * 12, brood.y + Math.sin(a) * 12).setData('brood', true).setAlpha(0);
     this.tweens.add({ targets: d, alpha: 1, duration: HUNTER.armMs });
-    this.explode(brood.x, brood.y, COLORS.danger, 6);
+    this.fx.implode(d.x, d.y, HOSTILE_COLORS.brood[0]);
+    this.fx.pop(brood.x, brood.y, [...HOSTILE_COLORS.brood], 10);
     playSound(this, 'hatch');
   }
 
@@ -690,7 +702,7 @@ export class RoomScene extends Phaser.Scene {
     const foe = e.getData('foe') as Foe | undefined;
     // Read everything before destroy(): Phaser wipes the data, and getData() afterwards quietly returns undefined.
     const fromBrood = e.getData('brood') === true;
-    this.explode(e.x, e.y, COLORS.danger, kind === 'brood' ? 24 : 10);
+    this.fx.burst(e.x, e.y, [...HOSTILE_COLORS[kind]], kind === 'brood' || kind === 'warden' ? 'big' : 'small');
     playSound(this, kind === 'brood' || kind === 'warden' ? 'boomBig' : 'boom');
     this.floatText(e.x, e.y - 8, `${ENEMY_POINTS[kind]}`, TEXT.ink);
     e.destroy();
@@ -776,6 +788,7 @@ export class RoomScene extends Phaser.Scene {
     playSound(this, 'shoo');
     this.addScore(SCAVENGER.points);
     this.floatText(s.x, s.y - 8, `${SCAVENGER.points}`, TEXT.ink);
+    this.fx.pop(s.x, s.y, [...HOSTILE_COLORS.scavenger], 24);
     const stolen = s.getData('stolen') as TreasureKind | undefined;
     if (stolen) {
       this.dropLoot(stolen, s.x, s.y);
@@ -806,10 +819,20 @@ export class RoomScene extends Phaser.Scene {
     if (on) hum.setDetune(hitting ? 300 : 0);
   }
 
+  /** A hostile under the beam flickers white. The scavenger keeps its own tint (it shows stolen loot). */
+  private flash(target: Enemy | undefined) {
+    if (this.flashed !== target && this.flashed?.active) this.flashed.clearTint();
+    this.flashed = target;
+    if (target) target.setTint(0xffffff).setTintMode(Math.floor(this.time.now / 60) % 2 ? Phaser.TintModes.FILL : Phaser.TintModes.MULTIPLY);
+  }
+
   private updateBeam(firing: boolean, rawAim: number, dt: number) {
     this.beam.clear();
     this.beamHum(firing && !this.dead);
-    if (this.dead) return;
+    if (this.dead) {
+      this.flash(undefined);
+      return;
+    }
     const step = Math.PI / 4;
     const aim = this.snap8 ? Math.round(rawAim / step) * step : rawAim;
     const dx = Math.cos(aim), dy = Math.sin(aim);
@@ -837,26 +860,18 @@ export class RoomScene extends Phaser.Scene {
       this.beam.lineStyle(4, COLORS.beam, 0.28).lineBetween(sx, sy, ex, ey);
       this.beam.lineStyle(1, COLORS.beamCore, 1).lineBetween(sx, sy, ex, ey);
       this.beam.fillStyle(target ? COLORS.beamCore : COLORS.beam).fillRect(Math.round(ex) - 2, Math.round(ey) - 2, 4, 4);
+      const kind = target?.getData('kind') as keyof typeof HOSTILE_COLORS | undefined;
+      this.fx.hit(ex, ey, aim, kind ? HOSTILE_COLORS[kind][0] : COLORS.beam);
+      this.flash(kind && kind !== 'scavenger' ? target : undefined);
       if (target) this.hurt(target, BEAM.damagePerSecond * dt);
       this.beamHum(true, Boolean(target));
+    } else {
+      this.flash(undefined);
     }
     this.beam.fillStyle(firing ? COLORS.beamCore : COLORS.beam).fillRect(Math.round(sx) - 1, Math.round(sy) - 1, 2, 2);
   }
 
   // ---- Effects ----
-
-  private explode(x: number, y: number, color: number, count: number) {
-    for (let i = 0; i < count; i++) {
-      const a = (i / count) * Math.PI * 2 + Math.random() * 0.4;
-      const dist = 8 + Math.random() * 14;
-      const bit = this.add.rectangle(x, y, 2, 2, color).setDepth(20);
-      this.roomFx.add(bit);
-      this.tweens.add({
-        targets: bit, x: x + Math.cos(a) * dist, y: y + Math.sin(a) * dist, alpha: 0,
-        duration: 300 + Math.random() * 250, ease: 'Quad.out', onComplete: () => bit.destroy(),
-      });
-    }
-  }
 
   private floatText(x: number, y: number, text: string, color: string) {
     const t = this.add.text(x, y, text, { fontFamily: FONT, fontSize: '8px', color }).setOrigin(0.5).setDepth(140);
