@@ -35,6 +35,8 @@ Fly from room to room through the doorways. The **vault map** shows which rooms 
 - **Treasure only scores once you bank it.** Pick it up, carry it to the **extraction pad**, and land on it to cash in. The pad takes you to the next, harder vault.
 - **When you lose a ship, your cargo drops where you died.** The room is marked with an ✕ on the map. You respawn at the vault entrance and can go back for it.
 - **Bonuses:** an extra ship every 10,000 points, and 10,000 more for visiting all 36 rooms before you leave.
+- **High score:** your best is kept in this browser and shown on the title and at game over.
+- **Attract mode:** add `?attract` to the address for a silent demo that raids a vault by itself and ignores input. `?attract&seed=<n>` picks the vault layout and level.
 
 | Treasure | Value |
 | --- | ---: |
@@ -60,7 +62,10 @@ Fly from room to room through the doorways. The **vault map** shows which rooms 
 | Move | WASD | Left stick | Left circle |
 | Aim | Mouse | Right stick | Right circle |
 | Fire | Hold left click | Right stick or RT | Right circle |
+| Pause | P or Esc | Start or B | Tap **II** (top left, after the score) |
 | Sound on / off | M | Y | Tap **SOUND** (top right) |
+
+While paused, P, Enter or Start resumes and Esc or B goes back to the title. The game also pauses itself if you switch away.
 
 On a phone, turn the screen sideways. On wide screens the touch sticks sit in the empty space beside the game, so they don't cover the action.
 
@@ -87,10 +92,15 @@ src/
   touch.ts           on-screen touch sticks
   effects.ts         warp grid, sparks, bloom, screen wobble
   sfx.ts             procedural sound effects
+  hi.ts              the high score, kept in localStorage
+  attract.ts         the ?attract demo mode's settings
   scenes/            title screen, game room and HUD
 assets/sprites/      the game's 16 × 16 sprites
 design/              concept sheet used to pick the sprites
 tools/sprites.py     sprite search and export script
+tools/cdp.mjs        headless Chrome harness for the tests
+tools/pause-hi-test.mjs  checks pause and the high score
+tools/attract-test.mjs   checks the ?attract demo
 ```
 
 ## Credits

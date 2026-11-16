@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { AIM_MODE_SELECTABLE, FONT, HEIGHT, RENDER_SCALE, SNAP8, SPRITES, TEXT, WIDTH } from '../config';
+import { ATTRACT, attractSeed } from '../attract';
 import { Controls } from '../controls';
+import { loadHi } from '../hi';
 import { addTreasureGlow, startSparkles } from '../fx';
 import { playSound, registerSounds, restoreMute, toggleMute } from '../sfx';
 import { fitCamera } from '../view';
@@ -28,6 +30,8 @@ export class TitleScene extends Phaser.Scene {
   }
 
   create() {
+    // Attract mode goes straight to a vault once the sprites are loaded.
+    if (ATTRACT) return void this.scene.start('room', { attract: attractSeed() });
     if (!this.registry.has(SNAP8)) this.registry.set(SNAP8, false);
     this.padStatus = undefined;
     this.selected = 0;
@@ -51,6 +55,8 @@ export class TitleScene extends Phaser.Scene {
     text(cx, 10, 'A VAULT RAID IN 36 ROOMS', 8, TEXT.dim);
     text(cx, 20, 'SPACE RAIDER', 24, TEXT.amber);
     text(cx, 48, 'BLAST THE HOSTILES. GRAB WHAT GLOWS. GET OUT ALIVE.', 8, TEXT.ink);
+    const hi = loadHi();
+    if (hi) text(WIDTH - 40, 2, `HI ${hi.toLocaleString('en-US')}`, 8, TEXT.amber);
 
     // Legend: what you fly, what to collect, what to shoot.
     text(64, 64, 'YOU', 8, TEXT.dim);
@@ -79,11 +85,11 @@ export class TitleScene extends Phaser.Scene {
     const aimLine = (key: string) => (AIM_MODE_SELECTABLE ? `\n${key}` : '');
     const aimAction = AIM_MODE_SELECTABLE ? '\nAIM MODE' : '';
     if (touchScreen) {
-      column(cx, 'TOUCH', 'LEFT CIRCLE\nRIGHT CIRCLE\nTAP', 'MOVE\nAIM + FIRE\nSOUND, TOP RIGHT');
+      column(cx, 'TOUCH', 'LEFT CIRCLE\nRIGHT CIRCLE\nTAP II\nTAP', 'MOVE\nAIM + FIRE\nPAUSE, TOP LEFT\nSOUND, TOP RIGHT');
       return;
     }
-    column(112, 'KEYBOARD + MOUSE', `WASD\nMOUSE\nHOLD CLICK${aimLine('Q')}\nM`, `MOVE\nAIM\nFIRE${aimAction}\nSOUND ON/OFF`);
-    column(304, 'CONTROLLER', `L-STICK\nR-STICK\nRT${aimLine('BACK')}\nY`, `MOVE\nAIM + FIRE\nFIRE${aimAction}\nSOUND ON/OFF`);
+    column(112, 'KEYBOARD + MOUSE', `WASD\nMOUSE\nHOLD CLICK${aimLine('Q')}\nP  ·  M`, `MOVE\nAIM\nFIRE${aimAction}\nPAUSE  ·  SOUND`);
+    column(304, 'CONTROLLER', `L-STICK\nR-STICK\nRT${aimLine('BACK')}\nSTART  ·  Y`, `MOVE\nAIM + FIRE\nFIRE${aimAction}\nPAUSE  ·  SOUND`);
     this.padStatus = text(cx, 218, '', 8, TEXT.dim);
   }
 

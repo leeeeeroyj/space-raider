@@ -3,8 +3,10 @@ import {
   AIM_MODE_SELECTABLE, BEAM, BROOD, COLORS, COLS, FONT, HOSTILE_COLORS, HUD_H, HUD_STATE, HUNTER, INTERIOR, MINE, PLAYER, RENDER_SCALE, ROOM_H,
   ROOM_W, ROWS, SCAVENGER, SCORING, SENTRY, SNAP8, TEXT, TILE, TREASURE, WARDEN, tileCenter, type TreasureKind,
 } from '../config';
-import { Controls } from '../controls';
+import { DEMO_SECS } from '../attract';
+import { Controls, type ControlState } from '../controls';
 import { Effects } from '../effects';
+import { loadHi, saveHi } from '../hi';
 import { touchSticks } from '../touch';
 import { addGlow, addTreasureGlow, startSparkles } from '../fx';
 import { loopSound, playSound, toggleMute } from '../sfx';
@@ -160,18 +162,41 @@ export class RoomScene extends Phaser.Scene {
   /** A scavenger can show up once per room visit, decided the first time you're in the room with cargo. */
   private scavengerRolled = false;
   private scavengerDue: number | undefined;
+  /** Paused: nothing moves and the HUD shows RESUME and TITLE. */
+  paused = false;
+  private pausedAt = 0;
+  private hi = 0;
+  private newHi = false;
+  /** Attract mode: this demo's seed (the next demo uses the one after); -1 in a real run. */
+  private demoSeed = -1;
+  private demoOver = false;
+  private demoClock = 0;
+  /** The pilot's anti-stuck check: where it was a second ago, and a sideways push while it's stuck. */
+  private pilotCheck = { x: 0, y: 0, t: 0 };
+  private pilotNudge = { x: 0, y: 0, t: 0 };
+  private pilotAim = -Math.PI / 2;
+  /** Dev: demos started since the page loaded (attract mode). */
+  static demos = 0;
 
   constructor() {
     super('room');
   }
 
-  create() {
+  /** `attract` (a seed) runs a demo: the pilot raids a vault picked by the seed. */
+  create(data: { attract?: number } = {}) {
+    const demo = data.attract !== undefined;
     // Scene.restart() reuses this instance, so all run state is reset here.
     Object.assign(this, {
       score: 0, lives: PLAYER.lives, cargo: [], dead: false, over: false, banking: false, invulnerableUntil: 0,
-      doorGlow: undefined, bannerFade: undefined, runSeed: `${Date.now()}-${Math.random()}`,
+      doorGlow: undefined, bannerFade: undefined, runSeed: demo ? `demo-${data.attract}` : `${Date.now()}-${Math.random()}`,
       scavengerRolled: false, scavengerDue: undefined,
+      paused: false, hi: loadHi(), newHi: false, demoSeed: demo ? data.attract : -1, demoOver: false, demoClock: 0,
+      pilotCheck: { x: 0, y: 0, t: 0 }, pilotNudge: { x: 0, y: 0, t: 0 },
     });
+    if (demo) RoomScene.demos++;
+    // A restart from the pause panel mustn't leave the clocks stopped.
+    this.time.paused = false;
+    this.tweens.resumeAll();
     this.snap8 = AIM_MODE_SELECTABLE && this.registry.get(SNAP8) === true;
     fitCamera(this, RENDER_SCALE);
     this.input.setDefaultCursor('none');
@@ -219,22 +244,173 @@ export class RoomScene extends Phaser.Scene {
     this.banner = this.add.text(mid.x, mid.y - 48, '', { fontFamily: FONT, fontSize: '16px', color: TEXT.amber }).setOrigin(0.5).setDepth(150);
     this.subBanner = this.add.text(mid.x, mid.y - 36, '', { fontFamily: FONT, fontSize: '8px', color: TEXT.ink, align: 'center', lineSpacing: 4 }).setOrigin(0.5, 0).setDepth(150);
 
-    this.controls = new Controls(this);
-    touchSticks.show(true);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => touchSticks.show(false));
+    if (!demo) this.controls = new Controls(this);
+    touchSticks.show(!demo);
+    // A phone call, a tab switch or the screen locking pauses the run.
+    const hidden = () => { if (document.hidden) this.setPaused(true); };
+    if (!demo) document.addEventListener('visibilitychange', hidden);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      touchSticks.show(false);
+      document.removeEventListener('visibilitychange', hidden);
+    });
     startSparkles(this, () => this.treasures.getChildren().filter((t) => t.active) as Phaser.Physics.Arcade.Sprite[]);
     this.time.addEvent({ delay: HUNTER.spawnEveryMs / 3, loop: true, callback: () => this.spawnHunter() });
-    this.startVault(1);
+    this.startVault(demo ? 1 + (data.attract! % 3) : 1);
+  }
+
+  /** Pauses or resumes (not once the run is over, or in attract mode). */
+  setPaused(on: boolean) {
+    if (this.demoSeed >= 0 || on === this.paused || (on && this.over)) return;
+    this.paused = on;
+    this.time.paused = on;
+    if (on) {
+      this.tweens.pauseAll();
+      this.physics.world.pause();
+      this.beam.clear();
+      this.beamHum(false);
+      this.pausedAt = this.time.now;
+    } else {
+      this.tweens.resumeAll();
+      this.physics.world.resume();
+      this.shiftTimes(this.time.now - this.pausedAt);
+    }
+    touchSticks.show(!on);
+    playSound(this, 'chime');
+  }
+
+  /** The scene clock's `now` keeps running while paused, so the times things are due move on by the pause. */
+  private shiftTimes(ms: number) {
+    this.invulnerableUntil += ms;
+    this.nextSpawnAt += ms;
+    if (this.scavengerDue !== undefined) this.scavengerDue += ms;
+    for (const e of [...this.enemies.getChildren(), ...this.scavengers.getChildren()] as Enemy[]) {
+      for (const key of ['armedAt', 'nextShotAt', 'nextHatchAt', 'wakeAt']) {
+        const at = e.getData(key);
+        if (typeof at === 'number') e.setData(key, at + ms);
+      }
+    }
+  }
+
+  /**
+   * Attract mode's pilot: the beam always on the nearest hostile; flies to the room's loot, then room by room
+   * (through the doors, by the vault's own map) to the nearest room with loot, or the exit once it holds two pieces.
+   * Hostiles and bolts close by push it away, and if it hasn't moved for a second it's nudged sideways.
+   */
+  private pilot(dt: number): ControlState {
+    const p = this.player, move = new Phaser.Math.Vector2();
+    const out: ControlState = { move, aim: this.pilotAim, fire: false, toggleAim: false, confirm: false, back: false, mute: false, pause: false, device: 'kbm' };
+    if (this.dead || this.over || this.banking) return out;
+    const foes = [
+      ...(this.enemies.getChildren() as Enemy[]),
+      ...(this.scavengers.getChildren() as Enemy[]).filter((s) => !s.getData('fleeing')),
+    ].filter((e) => e.active);
+    let nearest: Enemy | undefined, nd = Infinity;
+    for (const e of foes) {
+      const d = Phaser.Math.Distance.Between(p.x, p.y, e.x, e.y);
+      if (d < nd) { nd = d; nearest = e; }
+    }
+    if (nearest) {
+      this.pilotAim = out.aim = Math.atan2(nearest.y - p.y, nearest.x - p.x);
+      out.fire = true;
+    }
+
+    const goal = this.pilotGoal();
+    move.set(goal.x - p.x, goal.y - p.y);
+    if (move.length() > 1) move.normalize();
+    // Keep clear of hostiles (the big slow ones get a wider berth) and step out of a bolt's path.
+    for (const e of foes) {
+      const kind = e.getData('kind') as string, r = kind === 'warden' || kind === 'brood' || kind === 'sentry' ? 40 : 34;
+      const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy);
+      if (d < r && d > 0) move.add(new Phaser.Math.Vector2(dx / d, dy / d).scale(2.2 * (1 - d / r)));
+    }
+    for (const b of this.bolts.getChildren() as Phaser.Physics.Arcade.Sprite[]) {
+      const v = (b.body as Phaser.Physics.Arcade.Body).velocity, speed = v.length();
+      const dx = p.x - b.x, dy = p.y - b.y;
+      if (!speed || Math.hypot(dx, dy) > 48 || dx * v.x + dy * v.y < 0) continue;
+      // Sideways off the line the bolt is travelling.
+      const nx = -v.y / speed, ny = v.x / speed, side = Math.sign(dx * nx + dy * ny) || 1;
+      move.add(new Phaser.Math.Vector2(nx * side, ny * side).scale(1.6));
+    }
+    // Stuck against a wall or between two pushes: shove sideways for a moment.
+    this.pilotCheck.t += dt;
+    if (this.pilotCheck.t > 1) {
+      if (Phaser.Math.Distance.Between(p.x, p.y, this.pilotCheck.x, this.pilotCheck.y) < 6 && move.length() > 0.3) {
+        const a = Math.atan2(move.y, move.x) + (Math.random() < 0.5 ? 1 : -1) * Math.PI / 2;
+        this.pilotNudge = { x: Math.cos(a), y: Math.sin(a), t: 0.6 };
+      }
+      this.pilotCheck = { x: p.x, y: p.y, t: 0 };
+    }
+    if (this.pilotNudge.t > 0) {
+      this.pilotNudge.t -= dt;
+      move.add(new Phaser.Math.Vector2(this.pilotNudge.x, this.pilotNudge.y).scale(1.5));
+    }
+    if (move.length() > 1) move.normalize();
+    return out;
+  }
+
+  /** Where the pilot is heading in this room: loot, the extraction pad, or through the door toward its next room. */
+  private pilotGoal(): { x: number; y: number } {
+    const p = this.player, room = this.room, vault = this.vault;
+    if (room.loot.length && this.cargo.length < 2) {
+      return room.loot.reduce((a, b) => (Phaser.Math.Distance.Between(p.x, p.y, a.x, a.y) <= Phaser.Math.Distance.Between(p.x, p.y, b.x, b.y) ? a : b));
+    }
+    if (room === vault.exit && this.cargo.length) return CENTER;
+    // Breadth-first through the doors: the first step toward the nearest room with loot, or the exit.
+    const want = (r: Room) => (this.cargo.length >= 2 ? r === vault.exit : r.loot.length > 0 || (r === vault.exit && this.cargo.length > 0));
+    const first = new Map<Room, Side>([[room, 'top']]);
+    const queue: Room[] = [room];
+    let side: Side | undefined;
+    while (queue.length && !side) {
+      const r = queue.shift()!;
+      for (const s of SIDES) {
+        const n = r.doors[s] && neighbor(vault, r, s);
+        if (!n || first.has(n)) continue;
+        first.set(n, r === room ? s : first.get(r)!);
+        if (want(n)) { side = first.get(n); break; }
+        queue.push(n);
+      }
+    }
+    // Nothing left to want: wander toward the exit anyway, or sit in the middle on the pad.
+    if (!side) {
+      if (room === vault.exit) return CENTER;
+      side = SIDES.find((s) => room.doors[s] && neighbor(vault, room, s)) ?? 'top';
+    }
+    const at = entryPoint(room, side);
+    const out = { top: [0, -1], bottom: [0, 1], left: [-1, 0], right: [1, 0] }[side];
+    // Line up just inside the doorway, then fly straight out through it.
+    const lined = side === 'top' || side === 'bottom' ? Math.abs(p.x - at.x) < 4 : Math.abs(p.y - at.y) < 4;
+    return lined ? { x: at.x + out[0] * 40, y: at.y + out[1] * 40 } : at;
   }
 
   update(time: number, delta: number) {
     const dt = delta / 1000;
-    const input = this.controls.read(this.player);
+    const demo = this.demoSeed >= 0;
+    const input = demo ? this.pilot(dt) : this.controls.read(this.player);
+    if (demo && !this.demoOver && (this.over || (this.demoClock += dt) > DEMO_SECS)) {
+      // Attract mode: the next demo, from the next seed.
+      this.demoOver = true;
+      this.scene.restart({ attract: (this.demoSeed + 1) % 2 ** 31 });
+      return;
+    }
     if (AIM_MODE_SELECTABLE && input.toggleAim) {
       this.snap8 = !this.snap8;
       this.registry.set(SNAP8, this.snap8);
     }
     if (input.mute) toggleMute(this);
+    if (this.paused) {
+      if (input.back) this.toTitle();
+      else if (input.pause || input.confirm) this.setPaused(false);
+      this.crosshair.clear();
+      this.publishHud(input);
+      return;
+    }
+    // Esc and B have nothing else to do mid-run, so they pause too (and then go to the title).
+    if (!this.over && (input.pause || input.back)) {
+      this.setPaused(true);
+      this.crosshair.clear();
+      this.publishHud(input);
+      return;
+    }
 
     if (this.over) {
       if (time - this.overAt > 800) {
@@ -259,12 +435,15 @@ export class RoomScene extends Phaser.Scene {
     this.fx.update(dt);
     this.crosshair.clear();
     const pointer = this.input.activePointer;
-    if (input.device === 'kbm' && this.controls.mouseSeen && pointer.worldX < ROOM_W && pointer.worldY > HUD_H) {
+    if (!demo && input.device === 'kbm' && this.controls.mouseSeen && pointer.worldX < ROOM_W && pointer.worldY > HUD_H) {
       const x = Math.round(pointer.worldX), y = Math.round(pointer.worldY);
       this.crosshair.fillStyle(COLORS.amber);
       this.crosshair.fillRect(x - 5, y, 3, 1).fillRect(x + 3, y, 3, 1).fillRect(x, y - 5, 1, 3).fillRect(x, y + 3, 1, 3);
     }
+    this.publishHud(input);
+  }
 
+  private publishHud(input: ControlState) {
     const hud: HudState = {
       score: this.score, lives: this.lives, cargo: this.cargo, device: input.device, level: this.vault.level,
       hostiles: hostileCount(this.room),
@@ -274,11 +453,14 @@ export class RoomScene extends Phaser.Scene {
         exit: roomIndex(this.vault.exit),
         wreck: this.vault.wreck ? roomIndex(this.vault.wreck) : -1,
       },
+      paused: this.paused, attract: this.demoSeed >= 0, over: this.over,
     };
     this.registry.set(HUD_STATE, hud);
   }
 
-  private toTitle() {
+  toTitle() {
+    // Leaving mid-run still counts toward the high score.
+    if (!this.over) saveHi(this.score);
     this.scene.stop('hud');
     this.scene.start('title');
   }
@@ -426,12 +608,15 @@ export class RoomScene extends Phaser.Scene {
       this.time.delayedCall(PLAYER.respawnDelayMs, () => {
         this.over = true;
         this.overAt = this.time.now;
+        if (this.demoSeed >= 0) return;
+        this.newHi = saveHi(this.score);
         playSound(this, 'gameOver');
+        const best = this.newHi ? 'NEW HIGH SCORE!' : `HI ${pts(Math.max(this.hi, this.score))}`;
         if (this.controls.device === 'touch') {
-          this.showBanner('GAME OVER', `SCORE ${pts(this.score)}`);
+          this.showBanner('GAME OVER', `SCORE ${pts(this.score)}\n${best}`);
           this.addTapButtons();
         } else {
-          this.showBanner('GAME OVER', `SCORE ${pts(this.score)}\nENTER / A  RETRY      ESC / B  TITLE`);
+          this.showBanner('GAME OVER', `SCORE ${pts(this.score)}\n${best}\n\nENTER / A  RETRY      ESC / B  TITLE`);
         }
       });
       return;
@@ -540,7 +725,8 @@ export class RoomScene extends Phaser.Scene {
     this.cargo = [];
     const detail = explored ? `EXPLORER BONUS +${pts(SCORING.explorerBonus)} AND A SHIP` : `ROOMS VISITED ${visited} OF ${GRID * GRID}`;
     this.showBanner(`VAULT ${this.vault.level} CLEAR`, `CARGO BANKED +${pts(cargoValue)}\n${detail}`, 2600);
-    this.time.delayedCall(3000, () => {
+    // A demo doesn't hold still that long.
+    this.time.delayedCall(this.demoSeed >= 0 ? 1600 : 3000, () => {
       this.banking = false;
       this.startVault(this.vault.level + 1);
     });

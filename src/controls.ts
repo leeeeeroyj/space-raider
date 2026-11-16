@@ -13,6 +13,8 @@ export interface ControlState {
   confirm: boolean;
   back: boolean;
   mute: boolean;
+  /** P on the keyboard, Start on a controller. */
+  pause: boolean;
   device: Device;
 }
 
@@ -39,11 +41,12 @@ const TOUCH_AIM_THRESHOLD = 0.3;
 const BTN = { A: 0, B: 1, Y: 3, BACK: 8, START: 9, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 } as const;
 const TRACKED = Object.values(BTN);
 
-type KeyName = 'W' | 'A' | 'S' | 'D' | 'Q' | 'M' | 'ENTER' | 'SPACE' | 'ESC' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
+type KeyName = 'W' | 'A' | 'S' | 'D' | 'Q' | 'M' | 'P' | 'ENTER' | 'SPACE' | 'ESC' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
 
 /**
  * One input layer for keyboard + mouse and a controller. Whichever was used last owns the aim.
- * Controller: left stick or D-pad moves, right stick aims and fires, RT/RB fire, Y toggles sound, Back toggles aim mode.
+ * Controller: left stick or D-pad moves, right stick aims and fires, RT/RB fire, Y toggles sound, Start pauses (and confirms),
+ * Back toggles aim mode.
  * Touch: two sticks (src/touch.ts), left moves, right aims and fires.
  * Construct one per scene.
  */
@@ -59,7 +62,7 @@ export class Controls {
   private readonly keys: Record<KeyName, Phaser.Input.Keyboard.Key>;
 
   constructor(private readonly scene: Phaser.Scene) {
-    this.keys = scene.input.keyboard!.addKeys('W,A,S,D,Q,M,ENTER,SPACE,ESC,UP,DOWN,LEFT,RIGHT') as Controls['keys'];
+    this.keys = scene.input.keyboard!.addKeys('W,A,S,D,Q,M,P,ENTER,SPACE,ESC,UP,DOWN,LEFT,RIGHT') as Controls['keys'];
     scene.input.mouse?.disableContextMenu();
     scene.input.on('pointermove', (p: Phaser.Input.Pointer) => {
       if (p.wasTouch) return;
@@ -103,6 +106,7 @@ export class Controls {
     let confirm = just(k.ENTER) || just(k.SPACE);
     let back = just(k.ESC);
     let mute = just(k.M);
+    let pause = just(k.P);
 
     const pad = this.pad();
     const edges = this.padEdges(pad);
@@ -133,6 +137,7 @@ export class Controls {
       if (edges.has(BTN.START) || edges.has(BTN.A)) confirm = true;
       if (edges.has(BTN.B)) back = true;
       if (edges.has(BTN.Y)) mute = true;
+      if (edges.has(BTN.START)) pause = true;
     }
 
     touchSticks.render();
@@ -153,7 +158,7 @@ export class Controls {
       this.device === 'pad' ? this.padAim
       : this.device === 'touch' ? this.touchAim
       : Math.atan2(pointer.worldY - from.y, pointer.worldX - from.x);
-    return { move, aim, fire, toggleAim, confirm, back, mute, device: this.device };
+    return { move, aim, fire, toggleAim, confirm, back, mute, pause, device: this.device };
   }
 
   readMenu(): MenuState {

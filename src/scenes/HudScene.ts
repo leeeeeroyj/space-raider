@@ -3,6 +3,7 @@ import { COLORS, FONT, HUD_H, HUD_SCALE, HUD_STATE, ROOM_H, ROOM_W, TEXT, TREASU
 import type { Device } from '../controls';
 import { MUTED, toggleMute } from '../sfx';
 import { GRID, type MapCell } from '../vault';
+import type { RoomScene } from './RoomScene';
 import { fitCamera } from '../view';
 
 export interface HudState {
@@ -15,6 +16,10 @@ export interface HudState {
   hostiles: number;
   /** Room indexes are row * GRID + col; wreck is -1 when there's no marked drop. */
   map: { cells: MapCell[]; current: number; exit: number; wreck: number };
+  paused: boolean;
+  /** Attract mode: no hints, pause or sound toggle. */
+  attract: boolean;
+  over: boolean;
 }
 
 const CELL_COLOR: Record<MapCell, number> = {
@@ -31,6 +36,10 @@ const LEGEND: Array<[MapCell, string]> = [['loot', 'LOOT'], ['clear', 'CLEAR'], 
 const PANEL = { x: 660, right: 820, y: MAP_BOTTOM + 52 };
 const TIERS = Object.keys(TREASURE) as TreasureKind[];
 const ROW_H = 24;
+const INK = Phaser.Display.Color.HexStringToColor(TEXT.ink).color;
+/** Pause on touch: two bars between the score and SHIPS, with a thumb-sized tap zone. */
+const PAUSE = { x: 178, y: 11 };
+const PAUSE_HINTS: Record<Device, string> = { kbm: 'P OR ENTER RESUME  ·  ESC TITLE', pad: 'START OR A RESUME  ·  B TITLE', touch: 'TAP RESUME' };
 /** Reserve ships shown as icons before the top bar switches to "icon x N". */
 const MAX_SHIP_ICONS = 5;
 
@@ -53,6 +62,11 @@ export class HudScene extends Phaser.Scene {
   private ships: Phaser.GameObjects.Image[] = [];
   private shownLives = -1;
   private shownCargo: string | undefined;
+  private pauseBars!: Phaser.GameObjects.Graphics;
+  private pauseTap!: Phaser.GameObjects.Zone;
+  private pauseMenu!: Phaser.GameObjects.Container;
+  private pauseHint!: Phaser.GameObjects.Text;
+  private pauseZones: Phaser.GameObjects.Zone[] = [];
 
   constructor() {
     super('hud');
@@ -115,6 +129,34 @@ export class HudScene extends Phaser.Scene {
     const below = PANEL.y + 32 + TIERS.length * ROW_H + 8;
     this.hostiles = label(PANEL.x, below, '');
     this.hint = label(RW / 2, RB + 2, '').setOrigin(0.5, 0);
+
+    // And no P key: on touch, II after the score pauses.
+    const room = () => this.scene.get('room') as RoomScene;
+    this.pauseBars = this.add.graphics().fillStyle(INK).fillRect(PAUSE.x, PAUSE.y, 5, 14).fillRect(PAUSE.x + 9, PAUSE.y, 5, 14);
+    this.pauseTap = this.add.zone(PAUSE.x - 16, 0, 46, BAR).setOrigin(0).setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => room().setPaused(true));
+
+    // The pause panel: RESUME and TITLE, as buttons a thumb or the mouse can hit.
+    this.pauseZones = [];
+    const pw = 380, ph = 190, px = RW / 2, top = (BAR + RB) / 2 - ph / 2, pg = this.add.graphics();
+    pg.fillStyle(COLORS.void, 0.55).fillRect(0, BAR, RW, RB - BAR);
+    pg.fillStyle(COLORS.void, 0.94).fillRect(px - pw / 2, top, pw, ph);
+    pg.lineStyle(2, COLORS.line).strokeRect(px - pw / 2, top, pw, ph);
+    const parts: Phaser.GameObjects.GameObject[] = [pg, this.add.text(px, top + 20, 'PAUSED', { fontFamily: FONT, fontSize: '32px', color: TEXT.ink }).setOrigin(0.5, 0)];
+    const button = (bx: number, text: string, primary: boolean, act: () => void) => {
+      const bw = 150, bh = 48, by = top + 84, art = this.add.graphics();
+      if (primary) art.fillStyle(COLORS.amber).fillRect(bx - bw / 2, by, bw, bh);
+      else art.lineStyle(2, INK).strokeRect(bx - bw / 2 + 1, by + 1, bw - 2, bh - 2);
+      const t = label(bx, by + bh / 2, text, primary ? '#05060d' : TEXT.ink).setOrigin(0.5);
+      const zone = this.add.zone(bx - bw / 2, by, bw, bh).setOrigin(0).setInteractive({ useHandCursor: true }).on('pointerdown', act);
+      this.pauseZones.push(zone);
+      parts.push(art, t, zone);
+    };
+    button(px - 85, 'RESUME', true, () => room().setPaused(false));
+    button(px + 85, 'TITLE', false, () => room().toTitle());
+    this.pauseHint = label(px, top + ph - 34, '').setOrigin(0.5, 0);
+    parts.push(this.pauseHint);
+    this.pauseMenu = this.add.container(0, 0, parts).setVisible(false).setDepth(10);
   }
 
   update() {
@@ -126,13 +168,20 @@ export class HudScene extends Phaser.Scene {
     this.level.setText(String(s.level).padStart(2, '0'));
     this.hostiles.setText(s.hostiles ? `HOSTILES ${s.hostiles}` : 'ROOM SECURE').setColor(s.hostiles ? TEXT.danger : TEXT.dim);
     const hints = {
-      pad: 'L-STICK MOVE  ·  R-STICK AIM + FIRE  ·  Y SOUND',
+      pad: 'L-STICK MOVE  ·  R-STICK AIM + FIRE  ·  START PAUSE  ·  Y SOUND',
       touch: 'LEFT CIRCLE MOVE  ·  RIGHT CIRCLE AIM + FIRE',
-      kbm: 'WASD MOVE  ·  MOUSE AIM  ·  CLICK FIRE  ·  M SOUND',
+      kbm: 'WASD MOVE  ·  MOUSE AIM  ·  CLICK FIRE  ·  P PAUSE  ·  M SOUND',
     };
-    this.hint.setText(hints[s.device]);
+    this.hint.setText(s.attract || s.paused ? '' : hints[s.device]);
     const muted = this.registry.get(MUTED) === true;
-    this.soundToggle.setText(muted ? 'SOUND OFF' : 'SOUND ON').setColor(muted ? TEXT.danger : TEXT.dim);
+    this.soundToggle.setText(muted ? 'SOUND OFF' : 'SOUND ON').setColor(muted ? TEXT.danger : TEXT.dim).setVisible(!s.attract);
+    this.soundToggle.input!.enabled = !s.attract;
+    const pauseTap = s.device === 'touch' && !s.attract && !s.over && !s.paused;
+    this.pauseBars.setVisible(pauseTap);
+    this.pauseTap.input!.enabled = pauseTap;
+    this.pauseMenu.setVisible(s.paused);
+    for (const z of this.pauseZones) z.input!.enabled = s.paused;
+    if (s.paused) this.pauseHint.setText(PAUSE_HINTS[s.device]);
     this.drawMap(s.map);
 
     // Ships in reserve (not counting the one in play).
